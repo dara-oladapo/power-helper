@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # Self-contained + single-file: one .exe that bundles the .NET runtime, so it runs on
+      # any Windows 10/11 machine with no separate install step. Trimming is deliberately
+      # left off - this app leans on WMI/reflection (System.Management) that trimming can
+      # break silently.
+      - name: Publish
+        run: >
+          dotnet publish src/PowerHelper/PowerHelper.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish
+
+      - name: Rename artifact
+        shell: bash
+        run: mv publish/PowerHelper.exe "PowerHelper-${{ steps.version.outputs.version }}-win-x64.exe"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PowerHelper-*.exe
+          generate_release_notes: true

@@ -25,13 +25,13 @@ Download the latest release from the [Releases](../../releases) page and run the
 
 ## Building from source
 
-Requires the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```
 dotnet build
 ```
 
-The built app is at `src/PowerHelper/bin/Debug/net8.0-windows/PowerHelper.exe`. Since it needs to enable/disable a PCI device, run it as Administrator.
+The built app is at `src/PowerHelper/bin/Debug/net10.0-windows/PowerHelper.exe`. Since it needs to enable/disable a PCI device, run it as Administrator.
 
 ## License
 

@@ -13,4 +13,8 @@ public sealed class AppSettings
     public int LowBatteryWarningThresholdPercent { get; set; } = 15;
 
     public bool ThrottleRefreshRateOnBattery { get; set; }
+
+    public bool CapBrightnessOnBattery { get; set; }
+
+    public int BatteryBrightnessPercent { get; set; } = 50;
 }

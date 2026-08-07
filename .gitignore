@@ -189,6 +189,9 @@ DocProject/Help/html
 # Click-Once directory
 publish/
 
+# Inno Setup installer output
+installer-output/
+
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml

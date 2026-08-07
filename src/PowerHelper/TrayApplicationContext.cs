@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Reflection;
 using PowerHelper.Models;
 using PowerHelper.Services;
 
@@ -15,6 +17,8 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly BatteryStatusService _batteryService = new();
     private readonly PowerPlanService _powerPlanService = new();
     private readonly RefreshRateService _refreshRateService = new();
+    private readonly BrightnessService _brightnessService = new();
+    private readonly UpdateCheckService _updateCheckService = new();
     private readonly TrayIconRenderer _iconRenderer = new();
 
     private readonly NotifyIcon _trayIcon;
@@ -26,19 +30,30 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem _powerPlanItem;
     private readonly ToolStripMenuItem _refreshRateItem;
     private readonly ToolStripMenuItem _lowBatteryWarningItem;
+    private readonly ToolStripMenuItem _brightnessItem;
+    private readonly ToolStripMenuItem _updateItem;
     private readonly System.Windows.Forms.Timer _refreshTimer;
 
     private readonly AppSettings _settings;
     private readonly string? _gpuInstanceId;
     private readonly bool _refreshRateThrottleSupported;
     private readonly int _nativeRefreshRateHertz;
+    private readonly bool _brightnessSupported;
 
     private bool _lowBatteryWarningShown;
     private SettingsWindow? _settingsWindow;
 
+    // The "unlock" half of the lock/unlock brightness feature: the level captured right
+    // before capping it for battery, so returning to AC restores exactly what the user had
+    // rather than a guessed default. Null whenever nothing is currently capped.
+    private int? _brightnessBeforeCap;
+    private UpdateInfo? _availableUpdate;
+
     internal AppSettings Settings => _settings;
     internal string? GpuInstanceId => _gpuInstanceId;
     internal bool RefreshRateThrottleSupported => _refreshRateThrottleSupported;
+    internal bool BrightnessSupported => _brightnessSupported;
+    internal UpdateInfo? AvailableUpdate => _availableUpdate;
     internal GpuDeviceService GpuService => _gpuService;
     internal BatteryStatusService BatteryService => _batteryService;
     internal PowerMonitorService PowerMonitor => _powerMonitor;
@@ -55,6 +70,8 @@ public sealed class TrayApplicationContext : ApplicationContext
         _nativeRefreshRateHertz = supportedFrequencies.Length > 0
             ? supportedFrequencies[^1]
             : NativeRefreshRateFallback;
+
+        _brightnessSupported = _brightnessService.GetBrightness() is not null;
 
         _batteryStatusItem = new ToolStripMenuItem("Battery: checking...") { Enabled = false };
         _statusItem = new ToolStripMenuItem("Status: checking...") { Enabled = false };
@@ -83,10 +100,17 @@ public sealed class TrayApplicationContext : ApplicationContext
         {
             Checked = _settings.LowBatteryWarningEnabled,
         };
+        _brightnessItem = new ToolStripMenuItem(
+            $"Lock brightness to {_settings.BatteryBrightnessPercent}% on battery", null, OnToggleBrightnessCap)
+        {
+            Checked = _settings.CapBrightnessOnBattery,
+            Enabled = _brightnessSupported,
+        };
         _startupItem = new ToolStripMenuItem("Start with Windows", null, OnToggleStartup)
         {
             Checked = _startupService.IsRegistered(),
         };
+        _updateItem = new ToolStripMenuItem("Check for Updates...", null, OnCheckForUpdatesClicked);
 
         var menu = new ContextMenuStrip();
         menu.Items.Add(_batteryStatusItem);
@@ -96,15 +120,21 @@ public sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add(_autoDisableItem);
         menu.Items.Add(_powerPlanItem);
         menu.Items.Add(_refreshRateItem);
+        menu.Items.Add(_brightnessItem);
         menu.Items.Add(_lowBatteryWarningItem);
         menu.Items.Add(_startupItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Settings...", null, OnOpenSettings);
+        menu.Items.Add(_updateItem);
         menu.Items.Add("Exit", null, OnExit);
 
         _trayIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            // Extracted from the exe's own embedded ApplicationIcon rather than a separate
+            // resource, so there's a single source of truth for the app's icon. This is the
+            // fallback shown before the first battery-status render, and permanently on a
+            // desktop with no battery (TrayIconRenderer only ever replaces it when one exists).
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application,
             ContextMenuStrip = menu,
             Visible = true,
             Text = "Power Helper",
@@ -127,6 +157,17 @@ public sealed class TrayApplicationContext : ApplicationContext
         _refreshTimer = new System.Windows.Forms.Timer { Interval = 30_000 };
         _refreshTimer.Tick += (_, _) => RefreshBatteryStatus();
         _refreshTimer.Start();
+
+        // Delayed and silent: fires once shortly after startup so it isn't competing with
+        // the rest of init, and never bothers the user unless it actually finds something.
+        var startupCheckTimer = new System.Windows.Forms.Timer { Interval = 5_000 };
+        startupCheckTimer.Tick += async (_, _) =>
+        {
+            startupCheckTimer.Stop();
+            startupCheckTimer.Dispose();
+            await CheckForUpdatesAsync(announceIfNoneFound: false);
+        };
+        startupCheckTimer.Start();
     }
 
     private void OnPowerSourceChanged(bool onBattery)
@@ -207,6 +248,40 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
+    private async void OnCheckForUpdatesClicked(object? sender, EventArgs e)
+    {
+        // Already know about one from the background startup check - no need to hit the
+        // network again, just take them straight to it.
+        if (_availableUpdate is { } known)
+        {
+            Process.Start(new ProcessStartInfo(known.ReleaseUrl) { UseShellExecute = true });
+            return;
+        }
+
+        await CheckForUpdatesAsync(announceIfNoneFound: true);
+    }
+
+    private async Task CheckForUpdatesAsync(bool announceIfNoneFound)
+    {
+        var currentVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
+        var update = await _updateCheckService.CheckForUpdateAsync(currentVersion);
+
+        if (update is { } found)
+        {
+            _availableUpdate = found;
+            _updateItem.Text = $"Update available: v{found.LatestVersion}";
+            _trayIcon.ShowBalloonTip(
+                10_000,
+                "Update available",
+                $"Power Helper v{found.LatestVersion} is ready to download.",
+                ToolTipIcon.Info);
+        }
+        else if (announceIfNoneFound)
+        {
+            _trayIcon.ShowBalloonTip(5_000, "Power Helper", "You're up to date.", ToolTipIcon.Info);
+        }
+    }
+
     /// <summary>
     /// Called by SettingsWindow after it mutates a field on the shared Settings instance
     /// directly - persists it, re-applies the automatic AC/battery policy with the new
@@ -228,6 +303,8 @@ public sealed class TrayApplicationContext : ApplicationContext
         _refreshRateItem.Checked = _settings.ThrottleRefreshRateOnBattery;
         _lowBatteryWarningItem.Checked = _settings.LowBatteryWarningEnabled;
         _lowBatteryWarningItem.Text = $"Warn at {_settings.LowBatteryWarningThresholdPercent}% battery";
+        _brightnessItem.Checked = _settings.CapBrightnessOnBattery;
+        _brightnessItem.Text = $"Lock brightness to {_settings.BatteryBrightnessPercent}% on battery";
         _startupItem.Checked = _startupService.IsRegistered();
     }
 
@@ -284,6 +361,14 @@ public sealed class TrayApplicationContext : ApplicationContext
         ApplyDesiredState();
     }
 
+    private void OnToggleBrightnessCap(object? sender, EventArgs e)
+    {
+        _settings.CapBrightnessOnBattery = !_settings.CapBrightnessOnBattery;
+        _brightnessItem.Checked = _settings.CapBrightnessOnBattery;
+        _settingsService.Save(_settings);
+        ApplyDesiredState();
+    }
+
     private void OnToggleLowBatteryWarning(object? sender, EventArgs e)
     {
         _settings.LowBatteryWarningEnabled = !_settings.LowBatteryWarningEnabled;
@@ -313,6 +398,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         ApplyGpuState(onBattery);
         ApplyPowerPlan(onBattery);
         ApplyRefreshRate(onBattery);
+        ApplyBrightness(onBattery);
     }
 
     private void ApplyGpuState(bool onBattery)
@@ -369,6 +455,34 @@ public sealed class TrayApplicationContext : ApplicationContext
         _refreshRateService.TrySetFrequency(target);
     }
 
+    private void ApplyBrightness(bool onBattery)
+    {
+        if (!_brightnessSupported)
+        {
+            return;
+        }
+
+        if (_settings.CapBrightnessOnBattery && onBattery)
+        {
+            // Lock: remember whatever the level was right before capping, but only on the
+            // transition into a capped state - re-running this while already capped (e.g.
+            // periodic re-apply) must not overwrite the saved level with the capped value.
+            if (_brightnessBeforeCap is null)
+            {
+                _brightnessBeforeCap = _brightnessService.GetBrightness();
+            }
+
+            _brightnessService.SetBrightness(_settings.BatteryBrightnessPercent);
+        }
+        else if (_brightnessBeforeCap is { } saved)
+        {
+            // Unlock: restore exactly what the user had, then clear so the next cap starts
+            // from a fresh capture instead of restoring a now-stale remembered value.
+            _brightnessService.SetBrightness(saved);
+            _brightnessBeforeCap = null;
+        }
+    }
+
     private void UpdateStatusText(bool onBattery)
     {
         if (_gpuInstanceId is null)
@@ -400,6 +514,11 @@ public sealed class TrayApplicationContext : ApplicationContext
         if (_settings.AutoSwitchPowerPlanOnBattery)
         {
             _powerPlanService.SetBalanced();
+        }
+
+        if (_brightnessBeforeCap is { } savedBrightness)
+        {
+            _brightnessService.SetBrightness(savedBrightness);
         }
 
         _refreshTimer.Stop();

@@ -41,10 +41,25 @@ jobs:
 
       - name: Rename artifact
         shell: bash
-        run: mv publish/PowerHelper.exe "PowerHelper-${{ steps.version.outputs.version }}-win-x64.exe"
+        # Copy, not move: the installer step below still needs publish/PowerHelper.exe as
+        # its source file.
+        run: cp publish/PowerHelper.exe "PowerHelper-${{ steps.version.outputs.version }}-win-x64.exe"
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer
+        shell: cmd
+        run: >
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          /DAppVersion=${{ steps.version.outputs.version }}
+          /DSourceExe="${{ github.workspace }}\publish\PowerHelper.exe"
+          installer\setup.iss
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: PowerHelper-*.exe
+          files: |
+            PowerHelper-*.exe
+            installer-output/*.exe
           generate_release_notes: true

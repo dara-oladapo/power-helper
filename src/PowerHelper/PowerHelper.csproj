@@ -8,8 +8,13 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>PowerHelper</AssemblyName>
     <RootNamespace>PowerHelper</RootNamespace>
+    <!-- Baseline for local/dev builds - keep this matching the latest git tag. The release
+         workflow overrides it with the exact tag version at publish time regardless, so this
+         only drifts between releases, never for an actual published build. -->
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

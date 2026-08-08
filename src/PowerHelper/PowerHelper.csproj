@@ -14,7 +14,7 @@
     <!-- Baseline for local/dev builds - keep this matching the latest git tag. The release
          workflow overrides it with the exact tag version at publish time regardless, so this
          only drifts between releases, never for an actual published build. -->
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
   </PropertyGroup>
 
   <ItemGroup>

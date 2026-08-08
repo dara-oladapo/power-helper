@@ -47,7 +47,10 @@ Name: "{group}\Uninstall Power Helper"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Power Helper"; Filename: "{app}\PowerHelper.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\PowerHelper.exe"; Description: "Launch Power Helper"; Flags: nowait postinstall skipifsilent
+; shellexec (not plain CreateProcess) is required here: Setup.exe itself runs elevated, and
+; a directly-elevated process launching another exe that also demands elevation via its own
+; manifest fails with error 740 (ERROR_ELEVATION_REQUIRED) unless routed through the shell.
+Filename: "{app}\PowerHelper.exe"; Description: "Launch Power Helper"; Flags: nowait postinstall skipifsilent shellexec
 
 [UninstallRun]
 ; Best-effort cleanup of the logon scheduled task if "Start with Windows" was ever enabled -

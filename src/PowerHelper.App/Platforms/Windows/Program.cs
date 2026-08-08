@@ -25,10 +25,16 @@ public static class Program
 
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
-        Microsoft.UI.Xaml.Application.Start(_ =>
+        // The parameter is named rather than discarded with _: a discard for the callback
+        // parameter puts `_` in scope, so `_ = new App()` then reads as an assignment to it
+        // rather than as a discard of the App.
+        Microsoft.UI.Xaml.Application.Start(callbackParams =>
         {
             var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
             SynchronizationContext.SetSynchronizationContext(context);
+
+            // WinUI takes ownership of the instance through Application.Current; nothing
+            // here needs to hold a reference to it.
             _ = new App();
         });
     }

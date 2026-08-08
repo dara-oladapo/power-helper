@@ -23,8 +23,8 @@ jobs:
       - name: Install MAUI workload
         run: dotnet workload install maui-windows --skip-sign-check
 
-      - name: Restore
-        run: dotnet restore
-
+      # One step, and no --no-restore. A separate restore followed by --no-restore let the
+      # two evaluate the self-contained/RuntimeIdentifier graph differently, so the build
+      # asked for runtime packs the restore hadn't been told to fetch.
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build --configuration Release

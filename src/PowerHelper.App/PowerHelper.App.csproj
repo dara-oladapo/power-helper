@@ -44,6 +44,18 @@
     -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 
+    <!--
+      Stated explicitly rather than left to be inferred. Unpackaged WinUI needs the Windows
+      App SDK present at runtime, and shipping it in the output is how that is guaranteed on
+      a machine that has never seen it. Leaving it implicit let restore and build disagree
+      about whether runtime packs were needed, which surfaced as NETSDK1112 at build time
+      after a restore that had looked like it succeeded.
+
+      The cost is a heavy build output even locally; that is the honest shape of this app.
+    -->
+    <SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
 

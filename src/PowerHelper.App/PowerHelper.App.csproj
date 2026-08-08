@@ -33,6 +33,17 @@
     -->
     <WindowsPackageType>None</WindowsPackageType>
 
+    <!--
+      Required, not a preference. WindowsPackageType=None makes the app self-contained, so
+      the build needs the .NET and WindowsDesktop runtime packs - and NuGet only downloads
+      those when a RuntimeIdentifier is present at restore time. Without it, restore
+      succeeds and the build then fails with NETSDK1112 asking for exactly this.
+
+      WindowsDesktop is in that list because PowerHelper.Core carries the WinForms tray icon
+      and the reference flows through.
+    -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
 

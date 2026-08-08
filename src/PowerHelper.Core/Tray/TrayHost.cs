@@ -110,10 +110,18 @@ public sealed class TrayHost : IDisposable
         }
         finally
         {
+            // Set even on failure, so a tray that couldn't start doesn't hang the caller
+            // waiting for it. The app still runs; it just has no icon.
             ready.Set();
         }
 
-        Application.Run(_context!);
+        // Null only if the setup above threw. Running a null context would turn a failed
+        // tray into an unhandled exception on a background thread, which takes the whole
+        // process down - a worse outcome than a missing icon.
+        if (_context is not null)
+        {
+            Application.Run(_context);
+        }
     }
 
     private static Icon LoadApplicationIcon()

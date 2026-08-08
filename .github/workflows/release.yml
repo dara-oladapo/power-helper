@@ -56,10 +56,29 @@ jobs:
           /DSourceExe="${{ github.workspace }}\publish\PowerHelper.exe"
           installer\setup.iss
 
+      # Pulls just this version's section out of CHANGELOG.md (between its "## [x.y.z]"
+      # heading and the next one, or the trailing reference-link block) so the release
+      # notes are the hand-written changelog entry, not GitHub's auto-generated
+      # compare-link stub (all it can produce here, since this repo pushes straight to
+      # main with no PRs to summarize). Uses index() rather than a dynamically-built
+      # regex - tested locally and confirmed some awk builds silently mis-escape "\[ver\]"
+      # into a bare character class that matches almost any line.
+      - name: Extract changelog section
+        shell: bash
+        run: |
+          awk -v ver="${{ steps.version.outputs.version }}" '
+          /^## \[/ {
+            if (found) exit
+            if (index($0, "[" ver "]") > 0) { found=1; next }
+          }
+          found && /^\[[0-9]/ { exit }
+          found { print }
+          ' CHANGELOG.md > release-notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             PowerHelper-*.exe
             installer-output/*.exe
-          generate_release_notes: true
+          body_path: release-notes.md

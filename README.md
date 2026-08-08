@@ -26,6 +26,22 @@ A setting for hardware your machine doesn't have is disabled and says so, rather
 
 All settings persist across restarts to `%AppData%\PowerHelper\settings.json`.
 
+## Platform support
+
+| | Windows | macOS | Linux |
+|---|---|---|---|
+| Status | **Supported** | Planned | Tracked, not started ([#3](../../issues/3)) |
+
+Every capability is a per-OS question, and on most operating systems the answer to at least
+one of them is "there is no API for that" — so support is something each platform
+implementation *reports* (`FeatureSupport` in `PowerHelper.Core/Abstractions`), not something
+inferred from what you're running on. A control for a capability the machine can't provide is
+disabled and says why, rather than silently doing nothing.
+
+.NET MAUI has no Linux target at all, so Linux isn't a build that can simply be added; the
+options are laid out in [#3](../../issues/3), with the per-feature work in
+[#4](../../issues/4) and [#5](../../issues/5).
+
 ## Requirements
 
 - Windows 10/11

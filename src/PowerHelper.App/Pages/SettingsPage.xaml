@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="PowerHelper.App.Pages.SettingsPage"
+             Title="Power Helper"
+             BackgroundColor="{AppThemeBinding Light={StaticResource Layer}, Dark={StaticResource LayerDark}}">
+
+    <!--
+      One column of full-width rows, grouped under headings, exactly the way the Windows
+      Settings app lays out a settings page.
+
+      This replaces a grid that reflowed into up to four columns of cards. No Windows
+      settings surface multi-columns its own setting rows, and at four columns the eye had
+      to re-find the control position on every row - the reflow was solving a problem
+      (wasted width) that a settings page does not actually have.
+    -->
+    <ScrollView>
+        <VerticalStackLayout Padding="24,20,24,28" Spacing="0">
+
+            <!-- ============================ status ============================ -->
+            <!-- The live readout the window is opened to check, so it comes first and
+                 carries the largest type on the page. -->
+            <Border Style="{StaticResource CardStyle}" Padding="18,16">
+                <VerticalStackLayout Spacing="14">
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
+                            <Label x:Name="BatteryPercentLabel" Text="—" Style="{StaticResource HeroStyle}" />
+                            <Label x:Name="BatteryDetailLabel" Text="Checking battery…" Style="{StaticResource CaptionStyle}" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                            <Border Style="{StaticResource ChipStyle}">
+                                <Label x:Name="PowerSourceLabel" Text="—" Style="{StaticResource CaptionStyle}" />
+                            </Border>
+                            <Border x:Name="GpuChip" Style="{StaticResource ChipStyle}">
+                                <Label x:Name="GpuStateLabel" Text="—" Style="{StaticResource CaptionStyle}" />
+                            </Border>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!--
+                      Charge meter. Star-width columns rather than a pixel figure, so it
+                      stays a true proportion of the window at any size, and it turns the
+                      caution colour below the warning threshold - the one place colour on
+                      this page carries information rather than decoration.
+                    -->
+                    <Border Style="{StaticResource MeterTrackStyle}">
+                        <Grid x:Name="ChargeMeter" ColumnDefinitions="*,*">
+                            <BoxView x:Name="ChargeFill" Grid.Column="0" CornerRadius="3" />
+                        </Grid>
+                    </Border>
+
+                </VerticalStackLayout>
+            </Border>
+
+            <!--
+              Message strip. Before this the app had no way to tell you anything had gone
+              wrong: a failed pnputil call or a refused scheduled-task registration just left
+              the control snapping back with no explanation.
+            -->
+            <Border x:Name="MessageStrip"
+                    IsVisible="False"
+                    Margin="0,12,0,0"
+                    Padding="12,10"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 6"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource CautionFill}, Dark={StaticResource CautionFillDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource CautionStrokeBrush}, Dark={StaticResource CautionStrokeDarkBrush}}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Label x:Name="MessageLabel"
+                           Grid.Column="0"
+                           FontSize="13"
+                           VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource CautionText}, Dark={StaticResource CautionTextDark}}" />
+                    <Button Grid.Column="1"
+                            Text="Dismiss"
+                            FontSize="12"
+                            Padding="10,4"
+                            VerticalOptions="Center"
+                            Clicked="OnDismissMessageClicked" />
+                </Grid>
+            </Border>
+
+            <!-- ============================ graphics ============================ -->
+            <Label Text="Graphics" Style="{StaticResource GroupHeaderStyle}" />
+            <Border Style="{StaticResource CardStyle}">
+                <VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
+                        <Path Grid.Column="0" Data="{StaticResource IconGpu}" Style="{StaticResource RowIconStyle}" />
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label Text="Disable the discrete GPU on battery" Style="{StaticResource RowTitleStyle}" />
+                            <Label x:Name="GpuRowDescription"
+                                   Text="Turns the discrete GPU off at the device level whenever you unplug, so no app can wake it. It comes back on AC and when Power Helper exits."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="AutoDisableGpuSwitch"
+                                Grid.Column="2"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Disable the discrete GPU on battery"
+                                Toggled="OnAutoDisableGpuToggled" />
+                    </Grid>
+
+                    <BoxView Style="{StaticResource DividerStyle}" />
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14" Padding="50,14,16,14">
+                        <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
+                            <Label Text="Override right now" Style="{StaticResource RowTitleStyle}" />
+                            <Label Text="A one-off change that isn't remembered — the next time you plug or unplug, the setting above takes over again."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Button x:Name="ManualGpuButton"
+                                Grid.Column="1"
+                                Text="Enable now"
+                                MinimumWidthRequest="116"
+                                VerticalOptions="Center"
+                                Clicked="OnManualGpuClicked" />
+                    </Grid>
+
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ============================ power ============================ -->
+            <Label Text="Power" Style="{StaticResource GroupHeaderStyle}" />
+            <Border Style="{StaticResource CardStyle}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
+                    <Path Grid.Column="0" Data="{StaticResource IconPower}" Style="{StaticResource RowIconStyle}" />
+                    <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                        <Label Text="Match the Windows power plan to the power source" Style="{StaticResource RowTitleStyle}" />
+                        <Label Text="Power saver on battery, Balanced on AC. Best performance stays a manual choice, so the fan never ramps for a reason that isn't heat."
+                               Style="{StaticResource RowDescriptionStyle}" />
+                    </VerticalStackLayout>
+                    <Switch x:Name="PowerPlanSwitch"
+                            Grid.Column="2"
+                            VerticalOptions="Center"
+                            SemanticProperties.Description="Match the Windows power plan to the power source"
+                            Toggled="OnPowerPlanToggled" />
+                </Grid>
+            </Border>
+
+            <!-- ============================ display ============================ -->
+            <Label Text="Display" Style="{StaticResource GroupHeaderStyle}" />
+            <Border Style="{StaticResource CardStyle}">
+                <VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
+                        <Path Grid.Column="0" Data="{StaticResource IconDisplay}" Style="{StaticResource RowIconStyle}" />
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label Text="Drop the refresh rate on battery" Style="{StaticResource RowTitleStyle}" />
+                            <Label x:Name="RefreshRateDescription"
+                                   Text="Restores your native refresh rate on AC, and when Power Helper exits."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="RefreshRateSwitch"
+                                Grid.Column="2"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Drop the refresh rate on battery"
+                                Toggled="OnRefreshRateToggled" />
+                    </Grid>
+
+                    <BoxView Style="{StaticResource DividerStyle}" />
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14,16,4">
+                        <Path Grid.Column="0" Data="{StaticResource IconBrightness}" Style="{StaticResource RowIconStyle}" />
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label Text="Lock brightness on battery" Style="{StaticResource RowTitleStyle}" />
+                            <Label x:Name="BrightnessDescription"
+                                   Text="Caps the panel at the level below whenever you're unplugged, and restores exactly what you had — not a default — on AC or exit."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="BrightnessSwitch"
+                                Grid.Column="2"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Lock brightness on battery"
+                                Toggled="OnBrightnessToggled" />
+                    </Grid>
+
+                    <!-- The slider sits in its own indented sub-row under the switch it
+                         belongs to, and dims with it, so the relationship is visible
+                         rather than implied by adjacency. -->
+                    <Grid x:Name="BrightnessLevelRow"
+                          ColumnDefinitions="Auto,*,48"
+                          ColumnSpacing="12"
+                          Padding="50,0,16,14">
+                        <Label Grid.Column="0" Text="Level" Style="{StaticResource CaptionStyle}" VerticalOptions="Center" />
+                        <Slider x:Name="BrightnessSlider"
+                                Grid.Column="1"
+                                Minimum="10"
+                                Maximum="100"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Brightness level on battery, percent"
+                                ValueChanged="OnBrightnessValueChanged"
+                                DragCompleted="OnBrightnessDragCompleted" />
+                        <Label x:Name="BrightnessValueLabel" Grid.Column="2" Text="50%" Style="{StaticResource ReadoutStyle}" />
+                    </Grid>
+
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ============================ notifications ============================ -->
+            <Label Text="Notifications" Style="{StaticResource GroupHeaderStyle}" />
+            <Border Style="{StaticResource CardStyle}">
+                <VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14,16,4">
+                        <Path Grid.Column="0" Data="{StaticResource IconBatteryAlert}" Style="{StaticResource RowIconStyle}" />
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label Text="Warn me when the battery is low" Style="{StaticResource RowTitleStyle}" />
+                            <Label Text="One notification per discharge, not one per check."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="LowBatterySwitch"
+                                Grid.Column="2"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Warn me when the battery is low"
+                                Toggled="OnLowBatteryToggled" />
+                    </Grid>
+
+                    <Grid x:Name="ThresholdRow"
+                          ColumnDefinitions="Auto,*,48"
+                          ColumnSpacing="12"
+                          Padding="50,0,16,14">
+                        <Label Grid.Column="0" Text="Warn at" Style="{StaticResource CaptionStyle}" VerticalOptions="Center" />
+                        <Slider x:Name="ThresholdSlider"
+                                Grid.Column="1"
+                                Minimum="5"
+                                Maximum="50"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Low battery warning threshold, percent"
+                                ValueChanged="OnThresholdValueChanged"
+                                DragCompleted="OnThresholdDragCompleted" />
+                        <Label x:Name="ThresholdValueLabel" Grid.Column="2" Text="15%" Style="{StaticResource ReadoutStyle}" />
+                    </Grid>
+
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ============================ general ============================ -->
+            <Label Text="General" Style="{StaticResource GroupHeaderStyle}" />
+            <Border Style="{StaticResource CardStyle}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
+                    <Path Grid.Column="0" Data="{StaticResource IconStartup}" Style="{StaticResource RowIconStyle}" />
+                    <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                        <Label Text="Start with Windows" Style="{StaticResource RowTitleStyle}" />
+                        <Label Text="Registers an elevated logon task, so these settings hold across reboots without a UAC prompt every time."
+                               Style="{StaticResource RowDescriptionStyle}" />
+                    </VerticalStackLayout>
+                    <Switch x:Name="StartupSwitch"
+                            Grid.Column="2"
+                            VerticalOptions="Center"
+                            SemanticProperties.Description="Start with Windows"
+                            Toggled="OnStartupToggled" />
+                </Grid>
+            </Border>
+
+            <!-- ============================ footer ============================ -->
+            <Grid ColumnDefinitions="*,Auto" Margin="4,20,4,0">
+                <HorizontalStackLayout Grid.Column="0" Spacing="8" VerticalOptions="Center">
+                    <Label x:Name="VersionLabel" Text="v0.0.0" Style="{StaticResource CaptionStyle}" />
+                    <Label Text="·" Style="{StaticResource CaptionStyle}" />
+                    <Label Text="View on GitHub" Style="{StaticResource CaptionStyle}" TextDecorations="Underline">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnGitHubTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </HorizontalStackLayout>
+
+                <Label x:Name="UpdateLabel"
+                       Grid.Column="1"
+                       IsVisible="False"
+                       Text="Update available"
+                       Style="{StaticResource CaptionStyle}"
+                       TextDecorations="Underline"
+                       VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnUpdateTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </Grid>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

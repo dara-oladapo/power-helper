@@ -1,4 +1,5 @@
 using System.Management;
+using System.Windows.Forms;
 
 namespace PowerHelper.Services;
 

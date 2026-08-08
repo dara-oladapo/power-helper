@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Windows only, and only ever Windows: every capability this app has (PnP device state,
+      ACPI battery data, WMI brightness, display modes, scheduled tasks) is a Windows API.
+      There is no second head to add, so there is no <TargetFrameworks> list here.
+    -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>PowerHelper.App</RootNamespace>
+    <AssemblyName>PowerHelper</AssemblyName>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <ApplicationTitle>Power Helper</ApplicationTitle>
+    <ApplicationId>com.daraoladapo.powerhelper</ApplicationId>
+
+    <!-- Baseline for local/dev builds - keep this matching the latest git tag. The release
+         workflow overrides it with the exact tag version at publish time regardless, so this
+         only drifts between releases, never for an actual published build. -->
+    <ApplicationDisplayVersion>0.2.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <Version>0.2.0</Version>
+
+    <!--
+      Unpackaged, and it has to be. The app enables and disables a PCI device, which needs
+      administrator rights, and an MSIX-packaged app cannot request elevation at all - its
+      requestedExecutionLevel is ignored and it always runs at medium integrity. Unpackaged
+      WinUI 3 is the only shape of MAUI app that can hold the privileges this one needs.
+    -->
+    <WindowsPackageType>None</WindowsPackageType>
+
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+
+    <ApplicationManifest>Platforms\Windows\app.manifest</ApplicationManifest>
+
+    <!--
+      Replaces the entry point WinUI would generate with Platforms/Windows/Program.cs, which
+      takes the single-instance mutex before any window exists. A tray app that can be
+      started twice ends up with two icons fighting over the same device.
+    -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- App icon: a graphite badge with an amber bolt, matching the tray icon's weight. -->
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#1A1A18" />
+
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#1A1A18" BaseSize="128,128" />
+
+    <!--
+      No <MauiFont>. The window deliberately uses the platform's own UI face - Segoe UI
+      Variable on Windows 11, Segoe UI on Windows 10 - because a settings surface that ships
+      its own typeface announces itself as third-party on a screen where every neighbouring
+      window uses the system font.
+    -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PowerHelper.Core\PowerHelper.Core.csproj" />
+  </ItemGroup>
+
+</Project>

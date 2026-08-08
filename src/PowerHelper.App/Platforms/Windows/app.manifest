@@ -6,10 +6,14 @@
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
         <!--
-          Enabling/disabling the discrete GPU PnP device requires administrative
-          rights. Forcing elevation here means every launch (including the one
-          registered by StartupService for logon) runs with the access it needs,
-          instead of failing silently or repeatedly prompting for UAC mid-session.
+          Enabling/disabling the discrete GPU PnP device requires administrative rights.
+          Forcing elevation here means every launch (including the one registered by
+          StartupService for logon) runs with the access it needs, instead of failing
+          silently or repeatedly prompting for UAC mid-session.
+
+          This is also why the app is unpackaged (WindowsPackageType=None): an MSIX-packaged
+          app cannot request elevation at all - this element is ignored and it always runs
+          at medium integrity.
         -->
         <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
       </requestedPrivileges>
@@ -27,5 +31,13 @@
     </application>
   </compatibility>
 
-  <!-- High DPI mode is set via Application.SetHighDpiMode in Program.cs instead of here -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <!--
+        Required by WinUI 3, and it also covers the WinForms tray thread: without it the
+        context menu renders at the wrong scale on a secondary monitor with a different DPI.
+      -->
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+    </windowsSettings>
+  </application>
 </assembly>

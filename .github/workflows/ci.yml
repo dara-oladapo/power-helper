@@ -17,6 +17,12 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # The app head is .NET MAUI, so the SDK alone can't build it. maui-windows rather
+      # than the full maui workload: there is no Android/iOS/Mac head in this repo, and
+      # installing those costs several minutes per run for nothing.
+      - name: Install MAUI workload
+        run: dotnet workload install maui-windows --skip-sign-check
+
       - name: Restore
         run: dotnet restore
 

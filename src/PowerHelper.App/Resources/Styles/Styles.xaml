@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!--
+      Type scale and spacing, both taken from WinUI rather than invented:
+
+        Caption 12 · Body 14 · BodyStrong 14 SemiBold · Subtitle 20 · Title 28
+        4px spacing base; 16px card padding; 8px card radius; 4px control radius
+
+      No FontFamily is set anywhere in this file. That is deliberate - the window inherits
+      the platform UI face (Segoe UI Variable on Windows 11, Segoe UI on Windows 10), which
+      is what every neighbouring settings window uses.
+    -->
+
+    <!-- ============================ containers ============================ -->
+
+    <Style x:Key="CardStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Card}, Dark={StaticResource CardDark}}" />
+        <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource CardStrokeBrush}, Dark={StaticResource CardStrokeDarkBrush}}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 8" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- A tinted tag for a read-only state ("On battery", "Discrete GPU on"). Quiet on
+         purpose: these report, they don't ask to be acted on. -->
+    <Style x:Key="ChipStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SubtleFill}, Dark={StaticResource SubtleFillDark}}" />
+        <Setter Property="Stroke" Value="{StaticResource TransparentBrush}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 4" />
+        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="HorizontalOptions" Value="End" />
+    </Style>
+
+    <!-- Hairline between rows inside one card. Rows are grouped in a card the way the
+         Windows Settings app groups them, so the divider is the only separation needed. -->
+    <Style x:Key="DividerStyle" TargetType="BoxView">
+        <Setter Property="HeightRequest" Value="1" />
+        <Setter Property="Color" Value="{AppThemeBinding Light={StaticResource Divider}, Dark={StaticResource DividerDark}}" />
+        <Setter Property="Margin" Value="16,0" />
+    </Style>
+
+    <Style x:Key="MeterTrackStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SubtleFill}, Dark={StaticResource SubtleFillDark}}" />
+        <Setter Property="Stroke" Value="{StaticResource TransparentBrush}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 3" />
+        <Setter Property="HeightRequest" Value="6" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- ============================ type ============================ -->
+
+    <Style x:Key="HeroStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="32" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimaryDark}}" />
+    </Style>
+
+    <Style x:Key="GroupHeaderStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimaryDark}}" />
+        <Setter Property="Margin" Value="4,20,0,8" />
+    </Style>
+
+    <Style x:Key="RowTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimaryDark}}" />
+    </Style>
+
+    <Style x:Key="RowDescriptionStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondaryDark}}" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+
+    <Style x:Key="CaptionStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondaryDark}}" />
+    </Style>
+
+    <!-- Figures that update in place. Right-aligned so the digits stay in one column as
+         the value changes rather than shuffling under the slider. -->
+    <Style x:Key="ReadoutStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimaryDark}}" />
+        <Setter Property="HorizontalTextAlignment" Value="End" />
+        <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
+    <!-- ============================ icons ============================ -->
+
+    <Style x:Key="RowIconStyle" TargetType="Path">
+        <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource TextSecondaryBrush}, Dark={StaticResource TextSecondaryDarkBrush}}" />
+        <Setter Property="StrokeThickness" Value="1.3" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeLineJoin" Value="Round" />
+        <Setter Property="WidthRequest" Value="20" />
+        <Setter Property="HeightRequest" Value="20" />
+        <Setter Property="Aspect" Value="Uniform" />
+        <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
+</ResourceDictionary>

@@ -1,0 +1,58 @@
+name: Feature request
+description: Something Power Helper should do that it doesn't.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Worth knowing before you write: Power Helper is free with no paid tier, so "what would people pay for" is never the argument for a feature. The one that works is that it saves real battery, saves you a trip into Windows Settings, or stops the machine doing something you didn't ask for.
+
+        The other thing that carries weight here is restraint. This app changes hardware state behind your back by design, which is only acceptable while the list of things it touches stays short, obvious, and reversible. A feature that adds a fifth thing it silently changes has to be worth that.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation you're in, not the feature you have in mind. The best solution often isn't the first one either of us thinks of.
+      placeholder: |
+        I dock at my desk and the dock counts as AC, so the dGPU comes back on even though I'm on
+        an external display that doesn't need it and the fan is audible all afternoon.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What do you do about it today?
+      description: Including "nothing, I live with it" — that's useful signal about how much it costs you.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+      description: Optional. Skip it if you'd rather just describe the problem.
+
+  - type: dropdown
+    id: reversible
+    attributes:
+      label: Would this change hardware state?
+      description: If it would, the app has to be able to put it back — on AC, and on exit. Say whether you can see how that would work.
+      options:
+        - "No — it's a display, notification, or settings change only"
+        - "Yes, and it's clearly reversible the same way the existing features are"
+        - "Yes, and I'm not sure how it would be reversed"
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This isn't macOS or Linux support. Every feature here is a Windows API with no cross-platform equivalent.
+        - label: This isn't forcing the Best performance power plan. That's a deliberate omission — it pins the CPU's minimum clock state and ramps the fan regardless of actual heat; see the README.
+        - label: I've searched existing issues for the same idea.

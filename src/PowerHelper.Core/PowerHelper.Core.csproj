@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PowerHelper</RootNamespace>
+    <AssemblyName>PowerHelper.Core</AssemblyName>
+    <!--
+      Everything this project does is Windows-specific by nature - PnP device state, ACPI
+      battery data, WMI brightness, display modes, scheduled tasks. The notification-area
+      icon lives here too: it is Win32 shell integration, not application UI, and keeping
+      WinForms confined to this project means the MAUI app never sees a second UI
+      framework's type names (System.Windows.Forms.Application vs Microsoft.Maui.Controls
+      .Application, and a dozen more) in its global usings.
+    -->
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,93 @@
+name: My hardware was left in a changed state
+description: The GPU, refresh rate, brightness or power plan stayed changed after Power Helper stopped. Highest priority — please file this even if you fixed it yourself.
+title: "[Stranded] "
+labels: ["stranded-state", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most serious thing that can go wrong here, so it gets its own form and jumps the queue.
+
+        Power Helper's whole bargain is that it changes hardware state temporarily and always puts it back — on AC, and on exit. A change that outlives the app breaks that bargain, and unlike a settings bug it leaves you with a machine that behaves wrong long after the app is gone.
+
+        **First, to get working again right now:**
+
+        - **Discrete GPU still disabled:** Device Manager → Display adapters → right-click the NVIDIA adapter → Enable device.
+        - **Refresh rate still low:** Settings → System → Display → Advanced display → choose your native rate. It also resets itself on reboot — Power Helper applies the mode for the session only, never to the saved default.
+        - **Brightness still capped:** just move the Windows brightness slider; nothing is holding it once the app isn't running.
+        - **Power plan still on Power saver:** Settings → System → Power, or `powercfg /setactive SCHEME_BALANCED`.
+
+        Report it even if the recovery above worked. Knowing *which* state survived and *how* the app ended is the whole diagnosis.
+
+  - type: dropdown
+    id: what-stuck
+    attributes:
+      label: What stayed changed
+      multiple: true
+      options:
+        - Discrete GPU left disabled
+        - Refresh rate left at 60 Hz
+        - Brightness left capped
+        - Power plan left on Power saver
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how-it-ended
+    attributes:
+      label: How did Power Helper stop?
+      description: This matters more than anything else in the report — the restore-on-exit path only runs on a clean exit.
+      options:
+        - I chose Exit from the tray menu
+        - I closed the settings window
+        - It crashed or vanished on its own
+        - I ended it from Task Manager
+        - Windows shut down, restarted, or slept
+        - It's still running and just isn't restoring
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you were doing, whether you were on battery or AC at the time, and when you noticed.
+      placeholder: |
+        Unplugged to go to a meeting, came back and plugged in, then closed the laptop lid. On waking,
+        the display was still at 60 Hz and stayed there until I set it back by hand.
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Power Helper version
+      description: Shown at the bottom of the settings window.
+      placeholder: 0.2.0
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: known
+    attributes:
+      label: Before you file
+      description: These are known and documented, so please check whether you're hitting one of them.
+      options:
+        - label: This wasn't a forced termination. Killing the process from Task Manager skips the restore path entirely — that is expected, not a bug, though the recovery steps above still apply.
+        - label: I've read the recovery steps above and this is a report, not a support request.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Whether it's reproducible, and whether it happens on every cycle or only sometimes.

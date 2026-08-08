@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!--
+      Icon geometry drawn on a 20x20 grid, rendered through Microsoft.Maui.Controls.Shapes.Path.
+
+      Geometry rather than glyphs from Segoe Fluent Icons: that font ships on Windows 11 but
+      not on every Windows 10 install, and a missing glyph renders as a hollow box. A Path
+      takes its Stroke from a binding, so one definition covers light and dark; a MauiImage
+      SVG is baked to a PNG at build time and cannot be tinted.
+
+      Single-weight strokes, flat terminals, geometry over illustration - the same family as
+      the app mark. Draw new ones on the same grid.
+    -->
+
+    <!-- A chip with pins: the discrete GPU as a device, which is what gets switched off. -->
+    <PathGeometry x:Key="IconGpu" Figures="M6,6 H14 V14 H6 Z M8.6,8.6 H11.4 V11.4 H8.6 Z M8.5,6 V3.6 M11.5,6 V3.6 M8.5,14 V16.4 M11.5,14 V16.4 M6,8.5 H3.6 M6,11.5 H3.6 M14,8.5 H16.4 M14,11.5 H16.4" />
+
+    <!-- Bolt: the power plan. -->
+    <PathGeometry x:Key="IconPower" Figures="M11.2,2.6 L5.4,10.8 H9.4 L8.8,17.4 L14.6,9.2 H10.6 Z" />
+
+    <!-- Monitor on a stand: refresh rate belongs to the panel, not the GPU. -->
+    <PathGeometry x:Key="IconDisplay" Figures="M2.6,4.4 H17.4 V13.6 H2.6 Z M7,16.8 H13 M10,13.6 V16.8" />
+
+    <!-- Sun with rays: brightness. -->
+    <PathGeometry x:Key="IconBrightness" Figures="M13,10 A3,3 0 1,1 7,10 A3,3 0 1,1 13,10 M10,2.8 V4.6 M10,15.4 V17.2 M2.8,10 H4.6 M15.4,10 H17.2 M4.9,4.9 L6.2,6.2 M13.8,13.8 L15.1,15.1 M15.1,4.9 L13.8,6.2 M6.2,13.8 L4.9,15.1" />
+
+    <!-- Battery cell beside an exclamation: the low-battery warning. -->
+    <PathGeometry x:Key="IconBatteryAlert" Figures="M2.6,6.6 H12.4 V13.4 H2.6 Z M13.8,9.2 V10.8 M16,5.6 V11 M16,13.2 V13.9" />
+
+    <!-- Power button: start with Windows. -->
+    <PathGeometry x:Key="IconStartup" Figures="M10,2.8 V9.4 M6.2,5.3 A5.3,5.3 0 1,0 13.8,5.3" />
+
+</ResourceDictionary>

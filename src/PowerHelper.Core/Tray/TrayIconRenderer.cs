@@ -3,8 +3,11 @@ using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.Security;
 using Microsoft.Win32;
+using System.Drawing;
+using System.IO;
+using System.Windows.Forms;
 
-namespace PowerHelper.Services;
+namespace PowerHelper.Tray;
 
 /// <summary>
 /// Renders short live text (e.g. "42m", "2h") directly onto the tray icon bitmap. The

@@ -11,7 +11,7 @@ A lightweight Windows tray utility for laptop power management. The discrete-GPU
 - **Brightness locked on battery** — caps the panel to a level you set whenever unplugged, and restores exactly what you had (not a guessed default) when you plug back in or exit the app.
 - **Low battery warning** — a toast notification at a threshold you set, with hysteresis so it doesn't repeat every poll.
 - **Starts with Windows** — registers an elevated logon task, so it doesn't repeatedly prompt for UAC.
-- **Looks like Windows** — the settings window follows your light/dark mode and accent colour, and so does the tray menu.
+- **Looks like Windows** — the settings window follows your light/dark mode and accent colour, and so does the tray menu. Set it to **System**, **Light** or **Dark**; System is the default and tracks your OS setting as it changes.
 - **Update checker** — checks GitHub Releases shortly after startup and notifies you if a newer version is out; "Check for Updates..." in the tray menu triggers it manually anytime. Purely informational — it never downloads or installs anything on its own.
 
 Every automatic feature above is opt-in except the dGPU toggle (on by default) — nothing else changes your system until you turn it on.
@@ -20,7 +20,7 @@ Every automatic feature above is opt-in except the dGPU toggle (on by default) �
 
 Left-click the tray icon (or right-click → Settings…) for a window with live battery status and every setting, alongside the tray's own menu — the two are views of the same state and stay in sync.
 
-It's built to look like part of Windows rather than like a third-party utility: it follows your light/dark app mode and your accent colour, uses the system UI font and real WinUI controls, and lays settings out as a single column of grouped rows the way the Windows Settings app does. Closing the window leaves the app running in the tray; **Exit** in the tray menu is what quits it, and it's the only path that restores everything it changed.
+It's built to look like part of Windows rather than like a third-party utility: it follows your light/dark app mode and your accent colour, uses the system UI font and real WinUI controls, and lays settings out as a single column of grouped rows the way the Windows Settings app does. **App theme** under *General* pins it to Light or Dark instead, and the tray menu follows whichever you choose. Closing the window leaves the app running in the tray; **Exit** in the tray menu is what quits it, and it's the only path that restores everything it changed.
 
 A setting for hardware your machine doesn't have is disabled and says so, rather than silently doing nothing.
 

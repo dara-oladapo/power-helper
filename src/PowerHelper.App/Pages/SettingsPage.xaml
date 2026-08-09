@@ -240,20 +240,54 @@
             <!-- ============================ general ============================ -->
             <Label Text="General" Style="{StaticResource GroupHeaderStyle}" />
             <Border Style="{StaticResource CardStyle}">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
-                    <Path Grid.Column="0" Data="{StaticResource IconStartup}" Style="{StaticResource RowIconStyle}" />
-                    <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                        <Label Text="Start with Windows" Style="{StaticResource RowTitleStyle}" />
-                        <Label x:Name="StartupDescription"
-                               Text="Registers an elevated logon task, so these settings hold across reboots without a UAC prompt every time."
-                               Style="{StaticResource RowDescriptionStyle}" />
-                    </VerticalStackLayout>
-                    <Switch x:Name="StartupSwitch"
-                            Grid.Column="2"
-                            VerticalOptions="Center"
-                            SemanticProperties.Description="Start with Windows"
-                            Toggled="OnStartupToggled" />
-                </Grid>
+                <VerticalStackLayout>
+
+                    <!-- A drop-down rather than a pair of switches or a segmented control,
+                         because "Choose your mode" in the Windows Settings personalisation
+                         page is a combo box with exactly these three entries. -->
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
+                        <Path Grid.Column="0" Data="{StaticResource IconTheme}" Style="{StaticResource RowIconStyle}" />
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label Text="App theme" Style="{StaticResource RowTitleStyle}" />
+                            <Label Text="System follows your OS setting as it changes, including a desktop that switches at sunset."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Picker x:Name="ThemePicker"
+                                Grid.Column="2"
+                                MinimumWidthRequest="132"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="App theme"
+                                SelectedIndexChanged="OnThemeSelectedIndexChanged">
+                            <Picker.ItemsSource>
+                                <!-- Order matches ThemePreference, so the selected index is
+                                     the enum value rather than a mapping to keep in step. -->
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>System</x:String>
+                                    <x:String>Light</x:String>
+                                    <x:String>Dark</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+                    </Grid>
+
+                    <BoxView Style="{StaticResource DividerStyle}" />
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
+                        <Path Grid.Column="0" Data="{StaticResource IconStartup}" Style="{StaticResource RowIconStyle}" />
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label Text="Start with Windows" Style="{StaticResource RowTitleStyle}" />
+                            <Label x:Name="StartupDescription"
+                                   Text="Registers an elevated logon task, so these settings hold across reboots without a UAC prompt every time."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="StartupSwitch"
+                                Grid.Column="2"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Start with Windows"
+                                Toggled="OnStartupToggled" />
+                    </Grid>
+
+                </VerticalStackLayout>
             </Border>
 
             <!-- ============================ footer ============================ -->

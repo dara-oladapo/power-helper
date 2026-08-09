@@ -22,6 +22,7 @@ A UX pass over both surfaces, and the settings window rebuilt on .NET MAUI. See
 
 ### Added
 
+- **An app theme setting — System, Light or Dark.** It defaults to System, which follows your OS app mode live, and it's remembered across restarts. Whichever you pick, the window, its title bar and the tray menu all follow it.
 - A message strip in the settings window that reports failures. Previously a refused device change or a failed startup-task registration was completely silent — every service returned a result and every caller discarded it.
 - Controls for hardware you don't have are disabled **and say why**, instead of just being faded.
 - `SemanticProperties` on every switch and slider. The old custom toggles had no text and no automation name, so a screen reader had nothing to announce.

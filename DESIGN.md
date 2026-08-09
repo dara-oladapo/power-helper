@@ -138,6 +138,39 @@ coloured on purpose — the charge meter turns `CautionText` below the user's ow
 threshold. `Caution` and `Critical` otherwise appear only on the message strip, and never
 to mean "important".
 
+## The theme preference
+
+**System / Light / Dark, defaulting to System, persisted in `settings.json` as
+`AppSettings.Theme`.** The default is the part that matters: an app in this position should
+look like the OS unless it is told not to, and *System* is a live subscription rather than a
+reading taken at launch — a desktop that switches at sunset takes this window with it.
+
+The override exists because pinning is a real preference and refusing it is a worse answer
+than spending one row on it. But it is exactly one row, in *General*, as a drop-down with
+those three entries — which is what Windows' own **Choose your mode** is — rather than a
+theme picker with a preview.
+
+The mechanism worth knowing about: the preference is expressed as MAUI's `UserAppTheme`, and
+everything downstream reads the resolved answer from `Application.RequestedTheme` instead of
+asking Windows. That distinction is load-bearing. `SystemThemeService.CurrentTheme` reports
+the *OS app mode*, which is the wrong answer for a window pinned to Light on a dark desktop,
+and three things outside the XAML tree would otherwise get it wrong:
+
+| Surface | Why it can't use `AppThemeBinding` |
+|---|---|
+| Title bar | DWM, not XAML. Also has no "follow the system" state — it takes a resolved bool |
+| WinUI content tree | `ElementTheme` on the root element, which is what a `Switch` or a drop-down paints from |
+| Tray menu | A different UI framework on a different thread — `TrayHost.ApplyTheme` is told, not asked |
+
+`App` owns all of that: it applies the preference before the first window exists, and
+repaints those three whenever the preference changes or Windows raises a personalisation
+event. Nothing else sets `UserAppTheme`, and the page that hosts the drop-down only saves the
+value.
+
+One consequence to keep in mind when adding anything: the accent has a light shade and a dark
+shade, and which one is right follows the *app's* theme, not the OS's. `ApplyAccent` resolves
+it from `RequestedTheme` for that reason.
+
 ## Type
 
 No `FontFamily` is set anywhere. That is the design decision, not an omission: the window

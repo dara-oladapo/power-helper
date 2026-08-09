@@ -2,6 +2,7 @@ using System.Reflection;
 using PowerHelper.App.Pages;
 using PowerHelper.App.Services;
 using PowerHelper.Core;
+using PowerHelper.Models;
 #if WINDOWS
 using Microsoft.UI.Windowing;
 using PowerHelper.App.Platforms.Windows;
@@ -53,14 +54,21 @@ public partial class App : Application
         _themeService = themeService;
 
         InitializeComponent();
-        FollowSystemTheme();
 
+        // Before the first window exists, so a pinned Light or Dark is already in force when
+        // it is created rather than being corrected a frame later.
+        ApplyThemePreference();
+
+        _engine.SettingsChanged += OnEngineSettingsChanged;
         _themeService.Changed += OnSystemThemeServiceChanged;
 
         _tray.OpenSettingsRequested += () => MainThread.BeginInvokeOnMainThread(ShowSettings);
         _tray.ExitRequested += () => MainThread.BeginInvokeOnMainThread(Shutdown);
         _tray.CheckForUpdatesRequested += () => MainThread.BeginInvokeOnMainThread(() => _ = CheckForUpdatesAsync(announce: true));
 
+        // Seeds the menu's palette before Start builds it, so a pinned theme is never
+        // visibly repainted on the first open.
+        _tray.ApplyTheme(EffectiveThemeMode);
         _tray.Start();
 
         _ = ScheduleStartupUpdateCheckAsync();
@@ -72,19 +80,75 @@ public partial class App : Application
         _page = page;
 
         InitializeComponent();
-        FollowSystemTheme();
+        ApplyThemePreference();
+
+        _engine.SettingsChanged += OnEngineSettingsChanged;
 
         _ = ScheduleStartupUpdateCheckAsync();
     }
 #endif
 
+    // ---------------------------------------------------------------- theme
+
     /// <summary>
-    /// Follow the OS, full stop. This app deliberately does not offer its own light/dark
-    /// override the way pc-cleaner does: that is reasonable for an app you sit inside for an
-    /// hour, and noise in a settings surface you open for eight seconds. Unspecified keeps
-    /// tracking the OS, so a desktop that switches at sunset takes this window with it.
+    /// The persisted preference expressed as MAUI's own override. <c>Unspecified</c> is not
+    /// "no theme" — it is "keep tracking the OS", so a desktop that switches at sunset takes
+    /// this window with it. Light and Dark pin it against that.
     /// </summary>
-    private void FollowSystemTheme() => UserAppTheme = AppTheme.Unspecified;
+    private AppTheme DesiredAppTheme => _engine.Settings.Theme switch
+    {
+        ThemePreference.Light => AppTheme.Light,
+        ThemePreference.Dark => AppTheme.Dark,
+        _ => AppTheme.Unspecified,
+    };
+
+    private void ApplyThemePreference() => UserAppTheme = DesiredAppTheme;
+
+    /// <summary>
+    /// What the app is <em>actually</em> painting, which is the preference resolved against
+    /// the OS rather than either one alone. <see cref="Application.RequestedTheme"/> is the
+    /// same value <c>AppThemeBinding</c> resolves against, so the surfaces below stay in step
+    /// with the XAML instead of having to re-derive the answer.
+    /// </summary>
+    private bool IsDarkTheme => RequestedTheme == AppTheme.Dark;
+
+#if WINDOWS
+    private AppThemeMode EffectiveThemeMode => IsDarkTheme ? AppThemeMode.Dark : AppThemeMode.Light;
+#endif
+
+    /// <summary>
+    /// Repaints everything outside the XAML tree. <c>AppThemeBinding</c> covers the page's own
+    /// colours; the title bar, the tray menu and the accent-filled charge meter are all drawn
+    /// by something that has to be told.
+    /// </summary>
+    private void ApplyThemeToSurfaces()
+    {
+#if WINDOWS
+        if (_window is not null)
+        {
+            NativeWindow.ApplyTheme(_window, UserAppTheme, IsDarkTheme);
+        }
+
+        _tray.ApplyTheme(EffectiveThemeMode);
+#endif
+
+        _page.ApplyAccent();
+    }
+
+    /// <summary>
+    /// Settings change constantly and almost none of them are about the theme, so this only
+    /// does anything when the persisted preference no longer matches what is in force.
+    /// </summary>
+    private void OnEngineSettingsChanged() => MainThread.BeginInvokeOnMainThread(() =>
+    {
+        if (UserAppTheme == DesiredAppTheme)
+        {
+            return;
+        }
+
+        ApplyThemePreference();
+        ApplyThemeToSurfaces();
+    });
 
     protected override MauiWindow CreateWindow(IActivationState? activationState)
     {
@@ -120,7 +184,7 @@ public partial class App : Application
             return;
         }
 
-        NativeWindow.ApplyTitleBarTheme(_window);
+        NativeWindow.ApplyTheme(_window, UserAppTheme, IsDarkTheme);
 
         if (NativeWindow.Resolve(_window) is { } appWindow)
         {
@@ -168,7 +232,7 @@ public partial class App : Application
 
         _windowEverShown = true;
         NativeWindow.ShowAndFocus(_window);
-        NativeWindow.ApplyTitleBarTheme(_window);
+        NativeWindow.ApplyTheme(_window, UserAppTheme, IsDarkTheme);
 
         // Poll faster while someone is watching, and back off again on close.
         _engine.SetPollInterval(PowerHelperEngine.ActivePollInterval);
@@ -189,16 +253,13 @@ public partial class App : Application
 
     // ---------------------------------------------------------------- personalisation
 
-    private void OnSystemThemeServiceChanged() => MainThread.BeginInvokeOnMainThread(() =>
-    {
-        if (_window is not null)
-        {
-            NativeWindow.ApplyTitleBarTheme(_window);
-        }
-
-        _page.ApplyAccent();
-        _tray.ApplyTheme();
-    });
+    /// <summary>
+    /// The user changed their Windows app mode or accent. With a pinned Light or Dark the
+    /// mode half is a no-op — <see cref="Application.RequestedTheme"/> still answers with the
+    /// override — but the accent is followed either way, so this always repaints.
+    /// </summary>
+    private void OnSystemThemeServiceChanged() =>
+        MainThread.BeginInvokeOnMainThread(ApplyThemeToSurfaces);
 
 #endif
 

@@ -98,6 +98,58 @@
     --shadow: 0 18px 50px rgba(0, 0, 0, .55), 0 2px 6px rgba(0, 0, 0, .4);
   }
 
+  /* ============================================================
+     The in-app "App theme" setting.
+
+     Stamped on the window rather than on :root, because that is
+     exactly what it is: an override that repaints the app and
+     leaves the rest of the desktop — simulated here by the page
+     shell — on whatever the OS is set to. Custom properties
+     inherit, so a definition on .win beats the one on :root for
+     everything inside it without needing !important.
+
+     Only the --app-* tokens and the title bar are redefined. No
+     data-app-theme stamp means System, which resolves to the
+     :root values above and keeps following the simulated OS.
+     ============================================================ */
+  .win[data-app-theme="light"] {
+    --titlebar: #f3f3f3;
+    --titlebar-ink: #1b1b1b;
+
+    --app-layer: #f3f3f3;
+    --app-card: #ffffff;
+    --app-stroke: #e5e5e5;
+    --app-subtle: #e9e9e9;
+    --app-divider: #eaeaea;
+    --app-text: #1b1b1b;
+    --app-text-2: #5d5d5d;
+    --app-caution: #9d5d00;
+    --app-control: #ffffff;
+    --app-control-stroke: #8a8a8a;
+
+    --app-accent: var(--user-accent, #005a9e);
+    --app-on-accent: #ffffff;
+  }
+
+  .win[data-app-theme="dark"] {
+    --titlebar: #202020;
+    --titlebar-ink: #ffffff;
+
+    --app-layer: #202020;
+    --app-card: #2b2b2b;
+    --app-stroke: #303030;
+    --app-subtle: #383838;
+    --app-divider: #303030;
+    --app-text: #ffffff;
+    --app-text-2: #c5c5c5;
+    --app-caution: #fce100;
+    --app-control: #373737;
+    --app-control-stroke: #9a9a9a;
+
+    --app-accent: var(--user-accent, #4cc2ff);
+    --app-on-accent: #000000;
+  }
+
   * { box-sizing: border-box; }
 
   body {
@@ -408,6 +460,29 @@
 
   .btn:focus-visible { outline: 2px solid var(--app-text); outline-offset: 2px; }
 
+  /* ---------------------------------------------- combo box (the theme picker) */
+
+  .combo {
+    flex: 0 0 auto;
+    font: inherit;
+    font-size: 14px;
+    min-width: 132px;
+    padding: 6px 30px 6px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--app-stroke);
+    background: var(--app-control);
+    color: var(--app-text);
+    cursor: pointer;
+    appearance: none;
+    /* The chevron WinUI draws on a ComboBox, as a data URI so the page stays offline. */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 4.5 L6 8 l3.5-3.5' fill='none' stroke='%23888' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    background-size: 12px 12px;
+  }
+
+  .combo:focus-visible { outline: 2px solid var(--app-text); outline-offset: 2px; }
+
   .foot {
     display: flex;
     justify-content: space-between;
@@ -658,6 +733,21 @@
             <div class="row">
               <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"
                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10,3 A7,7 0 1,1 10,17 A7,7 0 1,1 10,3 M10,3 V17 M10,5.4 L12.6,7.2 M10,8.4 L13.6,10.6 M10,11.6 L12.6,13.4"/>
+              </svg>
+              <div class="text">
+                <div class="title">App theme</div>
+                <div class="desc">System follows your OS setting as it changes, including a desktop that switches at sunset.</div>
+              </div>
+              <select class="combo" id="app-theme" aria-label="App theme">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+            <div class="row">
+              <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M10,2.8 V9.4 M6.2,5.3 A5.3,5.3 0 1,0 13.8,5.3"/>
               </svg>
               <div class="text">
@@ -771,6 +861,12 @@
             app reads exactly these from the registry and repaints live.
           </li>
           <li>
+            <b>…unless you say otherwise</b>
+            <em>App theme</em> under General pins the window to Light or Dark. It defaults to
+            System, and changing it here moves the window without moving the page around it —
+            which is the whole point of an app-level override.
+          </li>
+          <li>
             <b>Real controls, not drawings</b>
             The old rocker switch was a content-less templated CheckBox: no focus visual, and
             nothing for a screen reader to announce but “checkbox”, six times in a row.
@@ -815,6 +911,19 @@
         press(themeButtons, function (b) { return b === btn; });
       });
     });
+
+    // ---- the app's own theme setting ------------------------------
+    // Deliberately stamped on the window and not on :root: the point of the setting is
+    // that it overrides the OS for this app only, so the page shell around it must not
+    // move when you change it.
+    var appTheme = document.getElementById("app-theme");
+    var afterWindow = document.getElementById("win-after");
+    if (appTheme && afterWindow) {
+      appTheme.addEventListener("change", function () {
+        if (appTheme.value === "system") { afterWindow.removeAttribute("data-app-theme"); }
+        else { afterWindow.setAttribute("data-app-theme", appTheme.value); }
+      });
+    }
 
     // ---- accent ---------------------------------------------------
     var swatches = Array.prototype.slice.call(document.querySelectorAll("[data-accent]"));

@@ -23,10 +23,14 @@ Findings are ordered by severity. Each says what shipped in response.
 On a machine in light mode the settings window was a black rectangle among white ones. There
 was no code path that read the user's app mode at all.
 
-**Fixed.** The window now follows the OS. Every colour is an `AppThemeBinding` over a token
-pair in `Resources/Styles/Colors.xaml`, and `UserAppTheme` is left at `Unspecified` so a
-desktop that switches at sunset takes the window with it — rather than sampling the theme
-once at launch and freezing.
+**Fixed.** The window now follows the OS by default. Every colour is an `AppThemeBinding`
+over a token pair in `Resources/Styles/Colors.xaml`, and `UserAppTheme` is left at
+`Unspecified` unless the user says otherwise — so a desktop that switches at sunset takes the
+window with it, rather than sampling the theme once at launch and freezing.
+
+**System / Light / Dark** is also offered under *General*, defaulting to System and persisted
+in `settings.json`. See [DESIGN.md](../DESIGN.md#the-theme-preference) for why the default is
+the interesting part and the override is the cheap part.
 
 ### 1.2 A light title bar bolted onto a dark window
 
@@ -216,9 +220,6 @@ to render text whose only job is to be read.
   this pass because it interacts with how the window is hidden and re-shown from the tray,
   and that path is the riskiest new thing here — worth landing on its own once the tray
   lifecycle has been exercised on real hardware.
-- **An in-app light/dark override.** pc-cleaner has one and should; it's an app you sit
-  inside. A settings surface you open from the tray for eight seconds should follow the OS
-  and not spend a control on the question.
 - **A first-run explanation.** `AutoDisableDgpuOnBattery` defaults to **on**, so the app
   starts changing hardware state the first time you unplug, before you've opened anything.
   That deserves a first-run moment. It's a product decision rather than a UI fix, so it is

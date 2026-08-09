@@ -42,6 +42,10 @@ public sealed class TrayHost : IDisposable
     private ToolStripMenuItem _startupItem = null!;
     private ToolStripMenuItem _updateItem = null!;
 
+    // Seeded from the OS so a tray started without the app ever calling ApplyTheme still
+    // paints correctly; overwritten by the app's own preference before Start in practice.
+    private AppThemeMode _theme = SystemThemeService.CurrentTheme;
+
     private bool _disposed;
 
     public event Action? OpenSettingsRequested;
@@ -104,7 +108,7 @@ public sealed class TrayHost : IDisposable
 
             _iconRenderer = new TrayIconRenderer();
 
-            ApplyTheme();
+            ApplyThemeCore();
             Render(_engine.LastStatus);
             SyncChecks();
 
@@ -219,13 +223,30 @@ public sealed class TrayHost : IDisposable
 
     // ---------------------------------------------------------------- theming
 
-    public void ApplyTheme() => Post(() =>
+    /// <summary>
+    /// Repaints the menu in <paramref name="theme"/>, and remembers it for the menu that
+    /// <see cref="Start"/> has yet to build. The caller decides rather than this class
+    /// reading the OS, because the app's own light/dark override can differ from the Windows
+    /// app mode and the menu belongs to the app.
+    ///
+    /// <para>
+    /// Safe to call before <see cref="Start"/>: the post is dropped, but the value is kept
+    /// and used the moment the menu exists.
+    /// </para>
+    /// </summary>
+    public void ApplyTheme(AppThemeMode theme)
+    {
+        _theme = theme;
+        Post(ApplyThemeCore);
+    }
+
+    private void ApplyThemeCore()
     {
         if (_menu is { } menu)
         {
-            TrayMenuTheme.Apply(menu, TrayPalette.For(SystemThemeService.CurrentTheme));
+            TrayMenuTheme.Apply(menu, TrayPalette.For(_theme));
         }
-    });
+    }
 
     // ---------------------------------------------------------------- rendering
 

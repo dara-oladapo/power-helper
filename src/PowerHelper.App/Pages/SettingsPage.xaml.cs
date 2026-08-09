@@ -2,6 +2,7 @@ using System.Reflection;
 using PowerHelper.App.Services;
 using PowerHelper.Core;
 using PowerHelper.Abstractions;
+using PowerHelper.Models;
 using PowerHelper.Services;
 #if WINDOWS
 using PowerHelper.Windows;
@@ -99,16 +100,20 @@ public partial class SettingsPage : ContentPage
     /// desktop exactly. Mac Catalyst has no equivalent a third-party app can read, so the
     /// meter falls back to the same blue Windows ships as its default - deliberately a plain
     /// value rather than a guess at what the user picked.
+    ///
+    /// Which shade of the accent is picked follows the theme the app is actually painting,
+    /// not the OS app mode: Windows publishes a lighter accent for dark surfaces and a darker
+    /// one for light ones, and a window pinned to Light on a dark desktop needs the latter.
     /// </summary>
     public void ApplyAccent()
     {
+        var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
+
 #if WINDOWS
-        var accent = SystemThemeService.CurrentAccent(SystemThemeService.CurrentTheme);
+        var accent = SystemThemeService.CurrentAccent(dark ? AppThemeMode.Dark : AppThemeMode.Light);
         _accentColor = Color.FromRgb(accent.R, accent.G, accent.B);
 #else
-        _accentColor = Application.Current?.RequestedTheme == AppTheme.Dark
-            ? Color.FromArgb("#4CC2FF")
-            : Color.FromArgb("#005A9E");
+        _accentColor = dark ? Color.FromArgb("#4CC2FF") : Color.FromArgb("#005A9E");
 #endif
         Render(_engine.LastStatus);
     }
@@ -204,6 +209,9 @@ public partial class SettingsPage : ContentPage
         LowBatterySwitch.IsToggled = settings.LowBatteryWarningEnabled;
         ThresholdSlider.Value = settings.LowBatteryWarningThresholdPercent;
         ThresholdValueLabel.Text = $"{settings.LowBatteryWarningThresholdPercent}%";
+
+        // The picker's items are in ThemePreference's own order, so the enum is the index.
+        ThemePicker.SelectedIndex = (int)settings.Theme;
 
         StartupSwitch.IsToggled = _engine.StartupRegistered;
 
@@ -400,6 +408,34 @@ public partial class SettingsPage : ContentPage
             StartupSwitch.IsToggled = _engine.StartupRegistered;
             _suppressEvents = false;
         }
+    }
+
+    /// <summary>
+    /// Saves the choice and nothing else. Repainting is <c>App</c>'s job: it owns
+    /// <c>UserAppTheme</c>, and the title bar and tray menu that have to be told about it are
+    /// outside this page entirely.
+    /// </summary>
+    private void OnThemeSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        // -1 while the picker is being populated, and not a value to persist.
+        if (ThemePicker.SelectedIndex is < 0 or > (int)ThemePreference.Dark)
+        {
+            return;
+        }
+
+        var choice = (ThemePreference)ThemePicker.SelectedIndex;
+        if (choice == _engine.Settings.Theme)
+        {
+            return;
+        }
+
+        _engine.Settings.Theme = choice;
+        _engine.NotifySettingsChanged();
     }
 
     private void OnGitHubTapped(object? sender, TappedEventArgs e) => BrowserLauncher.Open(RepoUrl);

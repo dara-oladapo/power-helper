@@ -34,34 +34,77 @@ choose.
 
 ## The stack
 
-.NET MAUI, Windows head only (`net10.0-windows10.0.19041.0`), unpackaged.
+.NET MAUI. One head per OS: `net10.0-windows10.0.19041.0` (unpackaged) and
+`net10.0-maccatalyst`. No Linux head, because MAUI has no Linux target — see
+[#3](https://github.com/dara-oladapo/power-helper/issues/3).
 
-Unpackaged is not a preference. The app enables and disables a PCI device, which needs
-administrator rights, and **an MSIX-packaged app cannot request elevation** — its
-`requestedExecutionLevel` is ignored and it always runs at medium integrity. Unpackaged WinUI 3
-is the only shape of MAUI app that can hold the privileges this one needs. The consequence
-is that `PublishSingleFile` is unavailable (WinUI 3 does not support it), so releases ship a
-self-contained folder — as a `.zip` and inside the Inno Setup installer — rather than the
-single portable `.exe` earlier versions had.
+Unpackaged on Windows is not a preference. The app enables and disables a PCI device, which
+needs administrator rights, and **an MSIX-packaged app cannot request elevation** — its
+`requestedExecutionLevel` is ignored and it always runs at medium integrity. Unpackaged
+WinUI 3 is the only shape of MAUI app that can hold the privileges this one needs. The
+consequence is that `PublishSingleFile` is unavailable (WinUI 3 does not support it), so
+releases ship a self-contained folder rather than the single portable `.exe` earlier
+versions had.
 
 ## Project shape
 
 | Project | Target | Holds |
 |---|---|---|
-| `PowerHelper.Core` | `net10.0-windows` | Services, `PowerHelperEngine`, and the tray icon |
-| `PowerHelper.App` | `net10.0-windows10.0.19041.0` (MAUI) | The settings window |
+| `PowerHelper.Core` | `net10.0` | Abstractions, `PowerHelperEngine`, settings, update check |
+| `PowerHelper.Windows` | `net10.0-windows` | Windows implementations + the tray icon |
+| `PowerHelper.App` | per-OS MAUI heads | The settings window; macOS implementations |
 
-The tray lives in Core rather than in the MAUI app, for a specific reason: `NotifyIcon` and
-`ContextMenuStrip` need WinForms, and a project with both MAUI's and WinForms' implicit
-usings has `Application`, `Button`, `Label`, `Image`, `Color` and a dozen more names
-ambiguous in every file. Confining WinForms to Core means the MAUI app never sees a second UI
-framework's type names.
+Core has **no target platform**: no WinForms, no `System.Management`, no P/Invoke.
+Everything that touches a device sits behind seven interfaces in `Abstractions/`. The target
+framework is what enforces that, and it is worth keeping strict — the earlier shape of the
+project imported WinForms, which is how a type called `FeatureSupport` ended up colliding
+with `System.Windows.Forms.FeatureSupport`.
 
-`PowerHelperEngine` is the single owner of settings, hardware policy and status polling. Both
-surfaces render from the events it raises and neither touches a device directly. Every device
-call and every status read passes through one `SemaphoreSlim`, because `pnputil`, `powercfg`
-and the WMI queries are all slow enough to overlap, and `BatteryStatusService` keeps rolling
-samples for its own charge-rate estimate that two concurrent readers would corrupt.
+Windows gets a project of its own, while macOS lives in `PowerHelper.App/Platforms/MacCatalyst`
+the way pc-cleaner does, for exactly one reason: the tray needs WinForms, and a project
+carrying both MAUI's and WinForms' implicit usings has `Application`, `Button`, `Label`,
+`Image` and `Color` ambiguous in every file.
+
+## Capability, not platform
+
+The rule that shapes everything above: **support is a value an implementation reports, not
+something a caller infers from the platform it is running on.**
+
+```csharp
+CapabilitySupport.Unavailable(
+    "Not available on macOS — Apple Silicon has no discrete GPU to switch, and macOS
+     never exposed a public API for it on the Intel machines that did.")
+```
+
+That reason is written for a user, because it is rendered verbatim under the setting it
+disables. Only the implementation knows whether the true answer is "no NVIDIA adapter in
+this laptop", "this panel reports one refresh rate" or "Apple doesn't expose it" — a page
+that guesses between those says something untrue on at least one platform.
+
+It also means the same page serves every OS with no branching. When the macOS head landed,
+`SettingsPage` needed no changes at all.
+
+The one thing this *cannot* express is the shape of the app itself. On Windows this is a
+tray-first utility: hidden window, close-to-hide, Exit in the notification-area menu. On
+macOS a Catalyst app cannot create a menu-bar item (`NSStatusItem` needs AppKit), so it is
+an ordinary window that quits when closed. That is a difference in what the app *is*, so
+`App.xaml.cs` branches on `#if WINDOWS` for the shell — and that is the only `#if` in the
+UI layer.
+
+## Threading
+
+Nothing slow runs on a UI thread. Device calls are process launches, WMI queries and
+D-Bus round trips depending on the OS, and all of them used to run inline on the window's
+thread.
+
+Everything goes through `PowerHelperEngine` behind a single `SemaphoreSlim`, because the
+implementations are slow enough to overlap and a battery reader keeping rolling samples for
+a charge-rate estimate would have its arithmetic corrupted by two concurrent readers.
+
+The engine raises its events on whichever thread finished the work, deliberately — it has
+consumers on different message pumps and shouldn't guess. Each surface marshals for itself:
+the page through `MainThread.BeginInvokeOnMainThread`, the tray through its own `Post`
+helper onto its WinForms loop.
 
 ## Colour tokens
 
@@ -166,16 +209,6 @@ Failure gets the message strip: WinUI's InfoBar caution/critical tokens, a speci
 naming the likely cause, and a dismiss button. Before it existed the app had no way to tell
 you anything had gone wrong at all — every service returned a `bool` and every caller
 discarded it.
-
-## Threading
-
-Nothing slow runs on a UI thread. `pnputil`, `powercfg`, `schtasks` and WMI are all slow
-enough to freeze a window, and all four used to run inline on it.
-
-The engine raises its events on whichever thread finished the work, deliberately — it has two
-consumers on two different message pumps and shouldn't guess. Each surface marshals for
-itself: the page through `MainThread.BeginInvokeOnMainThread`, the tray through its own
-`Post` helper onto its WinForms loop.
 
 ## Extending this
 

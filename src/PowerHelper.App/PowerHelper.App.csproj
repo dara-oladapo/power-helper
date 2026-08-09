@@ -47,10 +47,14 @@
       those when a RuntimeIdentifier is present at restore time. Without it, restore
       succeeds and the build then fails with NETSDK1112 asking for exactly this.
 
-      WindowsDesktop is in that list because PowerHelper.Core carries the WinForms tray icon
-      and the reference flows through.
+      WindowsDesktop is in that list because PowerHelper.Windows carries the WinForms tray
+      icon and the reference flows through.
+
+      Scoped to the Windows target framework. Left unconditional it leaked into the macOS
+      head, which then tried to restore Microsoft.NETCore.App.Runtime.Mono.win-x64 and
+      failed with NU1102.
     -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">win-x64</RuntimeIdentifier>
 
     <!--
       Stated explicitly rather than left to be inferred. Unpackaged WinUI needs the Windows
@@ -60,9 +64,12 @@
       after a restore that had looked like it succeeded.
 
       The cost is a heavy build output even locally; that is the honest shape of this app.
+
+      Windows-only, for the same reason as the RuntimeIdentifier above: Mac Catalyst decides
+      its own deployment shape and does not want either of these forced on it.
     -->
-    <SelfContained>true</SelfContained>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">true</SelfContained>
+    <WindowsAppSDKSelfContained Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">true</WindowsAppSDKSelfContained>
 
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>

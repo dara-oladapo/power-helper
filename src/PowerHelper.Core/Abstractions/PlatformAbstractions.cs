@@ -1,6 +1,11 @@
 namespace PowerHelper.Abstractions;
 
 /// <summary>
+/// Named CapabilitySupport rather than the more obvious FeatureSupport because
+/// System.Windows.Forms already has a type by that name, and the Windows implementations
+/// live in a project that imports it - two types called the same thing, one of which is
+/// about assembly version checks, is a collision worth not having.
+///
 /// Every capability this app has is a per-OS question, and on most operating systems the
 /// answer for at least one of them is "there is no API for that". So support is a value the
 /// implementation reports, not something the caller infers from the platform it happens to
@@ -8,20 +13,20 @@ namespace PowerHelper.Abstractions;
 ///
 /// <para>
 /// The rule for an implementation: if you cannot do the thing, return
-/// <see cref="FeatureSupport.Unavailable"/> with a <see cref="FeatureSupport.Reason"/>
+/// <see cref="CapabilitySupport.Unavailable"/> with a <see cref="CapabilitySupport.Reason"/>
 /// written for the person reading it in the settings window - name what is missing, not
 /// which class returned false. Never pretend to succeed.
 /// </para>
 /// </summary>
-public readonly record struct FeatureSupport(bool IsSupported, string? Reason)
+public readonly record struct CapabilitySupport(bool IsSupported, string? Reason)
 {
-    public static FeatureSupport Supported { get; } = new(true, null);
+    public static CapabilitySupport Supported { get; } = new(true, null);
 
     /// <param name="reason">
     /// Shown verbatim under the setting it disables, so write it for a user: "Not available —
     /// macOS has no API for switching a discrete GPU", not "GpuController returned false".
     /// </param>
-    public static FeatureSupport Unavailable(string reason) => new(false, reason);
+    public static CapabilitySupport Unavailable(string reason) => new(false, reason);
 }
 
 public enum GpuState
@@ -34,7 +39,7 @@ public enum GpuState
 /// <summary>Switches the discrete GPU at the device level.</summary>
 public interface IGpuController
 {
-    FeatureSupport Support { get; }
+    CapabilitySupport Support { get; }
 
     GpuState GetState();
 
@@ -50,7 +55,7 @@ public interface IGpuController
 /// </summary>
 public interface IPowerProfileController
 {
-    FeatureSupport Support { get; }
+    CapabilitySupport Support { get; }
 
     /// <summary>Names the profile pair for the UI, e.g. "Power saver" / "Low Power Mode".</summary>
     string BatteryProfileName { get; }
@@ -62,7 +67,7 @@ public interface IPowerProfileController
 
 public interface IRefreshRateController
 {
-    FeatureSupport Support { get; }
+    CapabilitySupport Support { get; }
 
     int NativeHertz { get; }
 
@@ -73,7 +78,7 @@ public interface IRefreshRateController
 
 public interface IBrightnessController
 {
-    FeatureSupport Support { get; }
+    CapabilitySupport Support { get; }
 
     int? GetPercent();
 
@@ -103,7 +108,7 @@ public interface IPowerSourceMonitor : IDisposable
 /// <summary>Registers the app to launch at logon - a scheduled task, a LaunchAgent, a .desktop file.</summary>
 public interface IStartupManager
 {
-    FeatureSupport Support { get; }
+    CapabilitySupport Support { get; }
 
     bool IsRegistered();
 

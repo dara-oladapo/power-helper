@@ -34,7 +34,7 @@ All settings persist across restarts to `%AppData%\PowerHelper\settings.json`.
 
 Every capability is a per-OS question, and on most operating systems the answer to at least
 one of them is "there is no API for that" — so support is something each platform
-implementation *reports* (`FeatureSupport` in `PowerHelper.Core/Abstractions`), not something
+implementation *reports* (`CapabilitySupport` in `PowerHelper.Core/Abstractions`), not something
 inferred from what you're running on. A control for a capability the machine can't provide is
 disabled and says why, rather than silently doing nothing.
 

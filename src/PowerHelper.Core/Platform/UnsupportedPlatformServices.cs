@@ -37,7 +37,7 @@ public static class UnsupportedPlatform
 
 public sealed class UnsupportedGpuController(string reason) : IGpuController
 {
-    public FeatureSupport Support { get; } = FeatureSupport.Unavailable(reason);
+    public CapabilitySupport Support { get; } = CapabilitySupport.Unavailable(reason);
 
     public GpuState GetState() => GpuState.NotFound;
 
@@ -48,7 +48,7 @@ public sealed class UnsupportedGpuController(string reason) : IGpuController
 
 public sealed class UnsupportedPowerProfileController(string reason) : IPowerProfileController
 {
-    public FeatureSupport Support { get; } = FeatureSupport.Unavailable(reason);
+    public CapabilitySupport Support { get; } = CapabilitySupport.Unavailable(reason);
 
     public string BatteryProfileName => "Power saver";
 
@@ -59,7 +59,7 @@ public sealed class UnsupportedPowerProfileController(string reason) : IPowerPro
 
 public sealed class UnsupportedRefreshRateController(string reason) : IRefreshRateController
 {
-    public FeatureSupport Support { get; } = FeatureSupport.Unavailable(reason);
+    public CapabilitySupport Support { get; } = CapabilitySupport.Unavailable(reason);
 
     public int NativeHertz => 60;
 
@@ -70,7 +70,7 @@ public sealed class UnsupportedRefreshRateController(string reason) : IRefreshRa
 
 public sealed class UnsupportedBrightnessController(string reason) : IBrightnessController
 {
-    public FeatureSupport Support { get; } = FeatureSupport.Unavailable(reason);
+    public CapabilitySupport Support { get; } = CapabilitySupport.Unavailable(reason);
 
     public int? GetPercent() => null;
 
@@ -103,7 +103,7 @@ public sealed class NoPowerSourceMonitor : IPowerSourceMonitor
 
 public sealed class UnsupportedStartupManager(string reason) : IStartupManager
 {
-    public FeatureSupport Support { get; } = FeatureSupport.Unavailable(reason);
+    public CapabilitySupport Support { get; } = CapabilitySupport.Unavailable(reason);
 
     public bool IsRegistered() => false;
 

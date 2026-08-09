@@ -92,4 +92,14 @@
     <ProjectReference Include="..\PowerHelper.Core\PowerHelper.Core.csproj" />
   </ItemGroup>
 
+  <!--
+    The Windows implementations, referenced only for the Windows target framework. A macOS
+    head takes its implementations from Platforms/MacCatalyst instead, the way pc-cleaner
+    does - only Windows needs a project of its own, because only Windows needs WinForms for
+    the notification-area icon.
+  -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <ProjectReference Include="..\PowerHelper.Windows\PowerHelper.Windows.csproj" />
+  </ItemGroup>
+
 </Project>

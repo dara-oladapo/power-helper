@@ -1,3 +1,4 @@
+using PowerHelper.Abstractions;
 using PowerHelper.Models;
 using PowerHelper.Services;
 
@@ -22,21 +23,25 @@ public readonly record struct StatusSnapshot(
 }
 
 /// <summary>
-/// The single owner of settings, hardware policy and status polling, shared by the tray
-/// icon and the settings window.
+/// The single owner of settings, hardware policy and status polling, shared by every
+/// surface the app has.
 ///
-/// It exists because those two surfaces run on different threads with different message
-/// pumps - the tray on its own WinForms loop, the window on the MAUI/WinUI dispatcher -
-/// and previously each drove the hardware directly and then tried to keep the other in
-/// step. Everything that touches a device now goes through here, serialised behind one
-/// gate, and both surfaces render from the events it raises.
+/// <para>
+/// It knows nothing about which operating system it is running on. Everything that touches
+/// a device arrives as <see cref="PlatformServices"/>, and every capability question is
+/// answered by asking the implementation rather than by testing the platform - so a
+/// half-ported OS degrades to disabled controls with reasons instead of to methods that
+/// quietly return false.
+/// </para>
 ///
+/// <para>
 /// Events are raised on whichever thread completed the work. Handlers are expected to
-/// marshal to their own UI thread; the engine deliberately doesn't guess which that is.
+/// marshal to their own UI thread; the engine deliberately doesn't guess which that is,
+/// because it has two consumers on two different message pumps.
+/// </para>
 /// </summary>
 public sealed class PowerHelperEngine : IDisposable
 {
-    private const int NativeRefreshRateFallback = 60;
     private const int ThrottledRefreshRateHertz = 60;
 
     // Slow enough to be invisible while the app sits in the tray, quick enough that a
@@ -44,25 +49,17 @@ public sealed class PowerHelperEngine : IDisposable
     public static readonly TimeSpan IdlePollInterval = TimeSpan.FromSeconds(30);
     public static readonly TimeSpan ActivePollInterval = TimeSpan.FromSeconds(5);
 
+    private readonly PlatformServices _platform;
     private readonly SettingsService _settingsService = new();
-    private readonly GpuDeviceService _gpuService = new();
-    private readonly PowerMonitorService _powerMonitor = new();
-    private readonly StartupService _startupService = new();
-    private readonly BatteryStatusService _batteryService = new();
-    private readonly PowerPlanService _powerPlanService = new();
-    private readonly RefreshRateService _refreshRateService = new();
-    private readonly BrightnessService _brightnessService = new();
     private readonly UpdateCheckService _updateCheckService = new();
 
-    // Every device call and every status read passes through this. pnputil, powercfg and
-    // the WMI queries are all slow enough to overlap otherwise, and BatteryStatusService
-    // keeps rolling samples for its own charge-rate estimate that two concurrent readers
-    // would corrupt.
+    // Every device call and every status read passes through this. The platform
+    // implementations are all slow enough to overlap - process launches, WMI, D-Bus - and a
+    // battery reader that keeps rolling samples for a charge-rate estimate would have its
+    // arithmetic corrupted by two concurrent readers.
     private readonly SemaphoreSlim _hardwareGate = new(1, 1);
 
     private readonly System.Threading.Timer _pollTimer;
-    private readonly string? _gpuInstanceId;
-    private readonly int _nativeRefreshRateHertz;
 
     private bool _lowBatteryWarningShown;
     private bool _disposed;
@@ -74,16 +71,23 @@ public sealed class PowerHelperEngine : IDisposable
 
     public AppSettings Settings { get; }
 
-    public bool GpuPresent => _gpuInstanceId is not null;
+    public CapabilitySupport GpuSupport => _platform.Gpu.Support;
 
-    public bool RefreshRateThrottleSupported { get; }
+    public CapabilitySupport PowerProfileSupport => _platform.PowerProfile.Support;
 
-    public bool BrightnessSupported { get; }
+    public CapabilitySupport RefreshRateSupport => _platform.RefreshRate.Support;
+
+    public CapabilitySupport BrightnessSupport => _platform.Brightness.Support;
+
+    public CapabilitySupport StartupSupport => _platform.Startup.Support;
+
+    /// <summary>Names the battery power profile for the UI - "Power saver", "Low Power Mode".</summary>
+    public string BatteryProfileName => _platform.PowerProfile.BatteryProfileName;
 
     /// <summary>
-    /// schtasks.exe is a process launch, so the answer is cached rather than re-queried.
-    /// The previous code shelled out roughly once every three seconds for as long as the
-    /// settings window stayed open, purely to redraw a switch that hadn't moved.
+    /// Registering at logon is a process launch or a file write on every platform, so the
+    /// answer is cached rather than re-queried. The previous code shelled out roughly once
+    /// every three seconds for as long as the settings window stayed open.
     /// </summary>
     public bool StartupRegistered { get; private set; }
 
@@ -100,30 +104,22 @@ public sealed class PowerHelperEngine : IDisposable
 
     public event Action<UpdateInfo>? UpdateFound;
 
-    public PowerHelperEngine()
+    public PowerHelperEngine(PlatformServices platform)
     {
+        _platform = platform;
         Settings = _settingsService.Load();
-        _gpuInstanceId = _gpuService.FindDiscreteGpuInstanceId();
-        StartupRegistered = _startupService.IsRegistered();
+        StartupRegistered = _platform.Startup.Support.IsSupported && _platform.Startup.IsRegistered();
 
-        var supportedFrequencies = _refreshRateService.GetSupportedFrequencies();
-        RefreshRateThrottleSupported = supportedFrequencies.Length > 1;
-        _nativeRefreshRateHertz = supportedFrequencies.Length > 0
-            ? supportedFrequencies[^1]
-            : NativeRefreshRateFallback;
-
-        BrightnessSupported = _brightnessService.GetBrightness() is not null;
-
-        // Synchronous on purpose: the app must not present either surface before the
-        // automatic policy has been applied once, or it would briefly report a state it
-        // hasn't actually established yet.
-        ApplyDesiredStateCore(_powerMonitor.IsOnBattery());
+        // Synchronous on purpose: no surface should be presented before the automatic policy
+        // has been applied once, or the app would briefly report a state it hasn't
+        // actually established yet.
+        ApplyDesiredStateCore(_platform.PowerSource.IsOnBattery());
         LastStatus = ReadSnapshot();
 
-        _powerMonitor.PowerSourceChanged += OnPowerSourceChanged;
+        _platform.PowerSource.PowerSourceChanged += OnPowerSourceChanged;
 
-        // AC/battery transitions trigger an immediate refresh via PowerSourceChanged, but
-        // charge % and time-to-full/empty drift continuously in between, so poll too.
+        // Power-source transitions trigger an immediate refresh, but charge % and
+        // time-to-full/empty drift continuously in between, so poll too.
         _pollTimer = new System.Threading.Timer(_ => _ = RefreshStatusAsync(), null, IdlePollInterval, IdlePollInterval);
     }
 
@@ -143,8 +139,8 @@ public sealed class PowerHelperEngine : IDisposable
 
     public async Task<StatusSnapshot> RefreshStatusAsync()
     {
-        // A skipped tick costs nothing here: another is always close behind, and waiting
-        // would just queue reads against hardware that is already being read.
+        // A skipped tick costs nothing: another is always close behind, and waiting would
+        // just queue reads against hardware that is already being read.
         if (!await _hardwareGate.WaitAsync(0).ConfigureAwait(false))
         {
             return LastStatus;
@@ -170,10 +166,11 @@ public sealed class PowerHelperEngine : IDisposable
 
     private StatusSnapshot ReadSnapshot()
     {
-        var battery = _batteryService.GetStatus();
-        var onBattery = _powerMonitor.IsOnBattery();
-        var gpu = _gpuInstanceId is { } id ? _gpuService.GetState(id) : GpuState.NotFound;
-        return new StatusSnapshot(battery, gpu, _gpuInstanceId is not null, onBattery);
+        var battery = _platform.Battery.GetStatus();
+        var onBattery = _platform.PowerSource.IsOnBattery();
+        var gpuPresent = _platform.Gpu.Support.IsSupported;
+        var gpu = gpuPresent ? _platform.Gpu.GetState() : GpuState.NotFound;
+        return new StatusSnapshot(battery, gpu, gpuPresent, onBattery);
     }
 
     private void PublishSnapshot(StatusSnapshot snapshot)
@@ -208,8 +205,8 @@ public sealed class PowerHelperEngine : IDisposable
 
     /// <summary>
     /// Persists whatever the caller just changed on <see cref="Settings"/>, tells the other
-    /// surface, and re-applies the automatic policy in the background so no UI thread is
-    /// ever held while pnputil, powercfg or a WMI call runs.
+    /// surfaces, and re-applies the automatic policy in the background so no UI thread is
+    /// ever held while a device call runs.
     /// </summary>
     public void NotifySettingsChanged()
     {
@@ -220,12 +217,17 @@ public sealed class PowerHelperEngine : IDisposable
 
     public async Task<bool> SetStartupAsync(bool enabled)
     {
-        var succeeded = await Task.Run(() => enabled ? _startupService.Register() : _startupService.Unregister())
+        if (!_platform.Startup.Support.IsSupported)
+        {
+            return false;
+        }
+
+        var succeeded = await Task.Run(() => enabled ? _platform.Startup.Register() : _platform.Startup.Unregister())
             .ConfigureAwait(false);
 
-        // Re-query rather than trust the action's own return value, so both surfaces
-        // reflect what schtasks actually did, not what we asked it to do.
-        StartupRegistered = await Task.Run(_startupService.IsRegistered).ConfigureAwait(false);
+        // Re-query rather than trust the action's own return value, so every surface
+        // reflects what the OS actually did, not what we asked it to do.
+        StartupRegistered = await Task.Run(_platform.Startup.IsRegistered).ConfigureAwait(false);
         SettingsChanged?.Invoke();
         return succeeded && StartupRegistered == enabled;
     }
@@ -234,18 +236,18 @@ public sealed class PowerHelperEngine : IDisposable
 
     /// <summary>
     /// A direct, one-off override of whatever the automatic policy last set - useful when
-    /// the dGPU is needed right now despite being on battery. It is not sticky: the next
-    /// AC/battery transition re-applies the automatic policy over this choice.
+    /// the discrete GPU is needed right now despite being on battery. It is not sticky: the
+    /// next power-source transition re-applies the automatic policy over this choice.
     /// </summary>
     public async Task<GpuActionResult> ToggleGpuManuallyAsync()
     {
-        if (_gpuInstanceId is not { } instanceId)
+        if (!_platform.Gpu.Support.IsSupported)
         {
             return GpuActionResult.Unsupported;
         }
 
-        // pnputil takes long enough on a real device that a second request arriving mid-run
-        // would race the first and leave the adapter in whichever state finished last.
+        // A device switch takes long enough on real hardware that a second request arriving
+        // mid-run would race the first and leave the adapter in whichever state finished last.
         if (!await _hardwareGate.WaitAsync(0).ConfigureAwait(false))
         {
             return GpuActionResult.Busy;
@@ -254,12 +256,9 @@ public sealed class PowerHelperEngine : IDisposable
         try
         {
             var succeeded = await Task.Run(() =>
-            {
-                var currentState = _gpuService.GetState(instanceId);
-                return currentState == GpuState.Disabled
-                    ? _gpuService.Enable(instanceId)
-                    : _gpuService.Disable(instanceId);
-            }).ConfigureAwait(false);
+                _platform.Gpu.GetState() == GpuState.Disabled
+                    ? _platform.Gpu.Enable()
+                    : _platform.Gpu.Disable()).ConfigureAwait(false);
 
             PublishSnapshot(await Task.Run(ReadSnapshot).ConfigureAwait(false));
             return succeeded ? GpuActionResult.Succeeded : GpuActionResult.Failed;
@@ -279,8 +278,8 @@ public sealed class PowerHelperEngine : IDisposable
     private void OnPowerSourceChanged(bool onBattery) => _ = ApplyDesiredStateAsync();
 
     /// <summary>
-    /// Re-applies the automatic policy without blocking the caller. A request that arrives
-    /// while one is running is dropped rather than queued, because the run in flight reads
+    /// Re-applies the automatic policy without blocking the caller. A request arriving while
+    /// one is running is dropped rather than queued, because the run in flight reads
     /// <see cref="Settings"/> live and will already observe the newer values.
     /// </summary>
     public async Task ApplyDesiredStateAsync()
@@ -292,14 +291,14 @@ public sealed class PowerHelperEngine : IDisposable
 
         try
         {
-            var onBattery = _powerMonitor.IsOnBattery();
+            var onBattery = _platform.PowerSource.IsOnBattery();
             await Task.Run(() => ApplyDesiredStateCore(onBattery)).ConfigureAwait(false);
             PublishSnapshot(await Task.Run(ReadSnapshot).ConfigureAwait(false));
         }
         catch (Exception)
         {
-            // Individual services already report failure through their return values; a
-            // throw here means something unexpected, and the next transition will retry.
+            // Implementations already report failure through their return values; a throw
+            // here means something unexpected, and the next transition will retry.
         }
         finally
         {
@@ -310,66 +309,72 @@ public sealed class PowerHelperEngine : IDisposable
     private void ApplyDesiredStateCore(bool onBattery)
     {
         ApplyGpuState(onBattery);
-        ApplyPowerPlan(onBattery);
+        ApplyPowerProfile(onBattery);
         ApplyRefreshRate(onBattery);
         ApplyBrightness(onBattery);
     }
 
     private void ApplyGpuState(bool onBattery)
     {
-        if (_gpuInstanceId is null)
+        if (!_platform.Gpu.Support.IsSupported)
         {
             return;
         }
 
         var shouldDisable = Settings.AutoDisableDgpuOnBattery && onBattery;
-        var currentState = _gpuService.GetState(_gpuInstanceId);
+        var currentState = _platform.Gpu.GetState();
 
         if (shouldDisable && currentState != GpuState.Disabled)
         {
-            _gpuService.Disable(_gpuInstanceId);
+            _platform.Gpu.Disable();
         }
         else if (!shouldDisable && currentState == GpuState.Disabled)
         {
-            _gpuService.Enable(_gpuInstanceId);
+            _platform.Gpu.Enable();
         }
     }
 
-    private void ApplyPowerPlan(bool onBattery)
+    private void ApplyPowerProfile(bool onBattery)
     {
-        if (!Settings.AutoSwitchPowerPlanOnBattery)
+        if (!Settings.AutoSwitchPowerPlanOnBattery || !_platform.PowerProfile.Support.IsSupported)
         {
             return;
         }
 
         if (onBattery)
         {
-            _powerPlanService.SetPowerSaver();
+            _platform.PowerProfile.ApplyBatteryProfile();
         }
         else
         {
-            // Balanced, not High performance: forcing High performance keeps the CPU's
-            // minimum clock state at 100% even at idle, which ramps the fan from sustained
-            // clock speed rather than actual heat - audibly noisy for no thermal reason.
-            // Performance is still one Fn+Q or Windows Settings click away when needed.
-            _powerPlanService.SetBalanced();
+            // Never the platform's maximum-performance profile. On Windows that pins the
+            // CPU's minimum clock state at 100% even at idle, which ramps the fan from
+            // sustained clock speed rather than from actual heat. Performance stays a
+            // manual choice the user makes in the OS.
+            _platform.PowerProfile.ApplyPluggedInProfile();
         }
     }
 
     private void ApplyRefreshRate(bool onBattery)
     {
-        if (!Settings.ThrottleRefreshRateOnBattery || !RefreshRateThrottleSupported)
+        if (!Settings.ThrottleRefreshRateOnBattery || !_platform.RefreshRate.Support.IsSupported)
         {
             return;
         }
 
-        var target = onBattery ? ThrottledRefreshRateHertz : _nativeRefreshRateHertz;
-        _refreshRateService.TrySetFrequency(target);
+        if (onBattery)
+        {
+            _platform.RefreshRate.ThrottleToLowRate();
+        }
+        else
+        {
+            _platform.RefreshRate.RestoreNativeRate();
+        }
     }
 
     private void ApplyBrightness(bool onBattery)
     {
-        if (!BrightnessSupported)
+        if (!_platform.Brightness.Support.IsSupported)
         {
             return;
         }
@@ -379,15 +384,15 @@ public sealed class PowerHelperEngine : IDisposable
             // Lock: remember whatever the level was right before capping, but only on the
             // transition into a capped state - re-running this while already capped (e.g.
             // a periodic re-apply) must not overwrite the saved level with the capped value.
-            _brightnessBeforeCap ??= _brightnessService.GetBrightness();
+            _brightnessBeforeCap ??= _platform.Brightness.GetPercent();
 
-            _brightnessService.SetBrightness(Settings.BatteryBrightnessPercent);
+            _platform.Brightness.SetPercent(Settings.BatteryBrightnessPercent);
         }
         else if (_brightnessBeforeCap is { } saved)
         {
             // Unlock: restore exactly what the user had, then clear so the next cap starts
             // from a fresh capture instead of restoring a now-stale remembered value.
-            _brightnessService.SetBrightness(saved);
+            _platform.Brightness.SetPercent(saved);
             _brightnessBeforeCap = null;
         }
     }
@@ -409,30 +414,31 @@ public sealed class PowerHelperEngine : IDisposable
     // ---------------------------------------------------------------- shutdown
 
     /// <summary>
-    /// Leaving the GPU disabled, the refresh rate throttled, or a battery-saver plan active
-    /// with no running process to undo it would strand the user in that state, so a clean
-    /// exit always restores.
+    /// Leaving the GPU disabled, the refresh rate throttled, or a battery-saver profile
+    /// active with no running process to undo it would strand the user in that state, so a
+    /// clean exit always restores. This is the app's central bargain - anything added to
+    /// <see cref="ApplyDesiredStateCore"/> has to be undone here.
     /// </summary>
     public void RestoreOnExit()
     {
-        if (_gpuInstanceId is not null && _gpuService.GetState(_gpuInstanceId) == GpuState.Disabled)
+        if (_platform.Gpu.Support.IsSupported && _platform.Gpu.GetState() == GpuState.Disabled)
         {
-            _gpuService.Enable(_gpuInstanceId);
+            _platform.Gpu.Enable();
         }
 
-        if (Settings.ThrottleRefreshRateOnBattery && RefreshRateThrottleSupported)
+        if (Settings.ThrottleRefreshRateOnBattery && _platform.RefreshRate.Support.IsSupported)
         {
-            _refreshRateService.TrySetFrequency(_nativeRefreshRateHertz);
+            _platform.RefreshRate.RestoreNativeRate();
         }
 
-        if (Settings.AutoSwitchPowerPlanOnBattery)
+        if (Settings.AutoSwitchPowerPlanOnBattery && _platform.PowerProfile.Support.IsSupported)
         {
-            _powerPlanService.SetBalanced();
+            _platform.PowerProfile.ApplyPluggedInProfile();
         }
 
         if (_brightnessBeforeCap is { } savedBrightness)
         {
-            _brightnessService.SetBrightness(savedBrightness);
+            _platform.Brightness.SetPercent(savedBrightness);
             _brightnessBeforeCap = null;
         }
     }
@@ -446,8 +452,11 @@ public sealed class PowerHelperEngine : IDisposable
 
         _disposed = true;
         _pollTimer.Dispose();
-        _powerMonitor.PowerSourceChanged -= OnPowerSourceChanged;
-        _powerMonitor.Dispose();
+        _platform.PowerSource.PowerSourceChanged -= OnPowerSourceChanged;
+        _platform.PowerSource.Dispose();
         _hardwareGate.Dispose();
     }
+
+    /// <summary>The low rate every platform throttles to. 60 Hz is universally supported.</summary>
+    public static int ThrottledRefreshRate => ThrottledRefreshRateHertz;
 }

@@ -1,7 +1,7 @@
 using System.Drawing;
 using Microsoft.Win32;
 
-namespace PowerHelper.Services;
+namespace PowerHelper.Windows;
 
 public enum AppThemeMode
 {

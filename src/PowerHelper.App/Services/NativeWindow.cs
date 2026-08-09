@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI.Windowing;
 using PowerHelper.Interop;
-using PowerHelper.Services;
+using PowerHelper.Windows;
 using MauiWindow = Microsoft.Maui.Controls.Window;
 
 namespace PowerHelper.App.Services;

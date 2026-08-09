@@ -3,7 +3,7 @@ using Microsoft.UI.Windowing;
 using PowerHelper.App.Pages;
 using PowerHelper.App.Services;
 using PowerHelper.Core;
-using PowerHelper.Services;
+using PowerHelper.Windows;
 using PowerHelper.Tray;
 using MauiWindow = Microsoft.Maui.Controls.Window;
 

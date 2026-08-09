@@ -127,8 +127,9 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
                     <Path Grid.Column="0" Data="{StaticResource IconPower}" Style="{StaticResource RowIconStyle}" />
                     <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                        <Label Text="Match the Windows power plan to the power source" Style="{StaticResource RowTitleStyle}" />
-                        <Label Text="Power saver on battery, Balanced on AC. Best performance stays a manual choice, so the fan never ramps for a reason that isn't heat."
+                        <Label x:Name="PowerPlanTitle" Text="Match the power plan to the power source" Style="{StaticResource RowTitleStyle}" />
+                        <Label x:Name="PowerPlanDescription"
+                               Text="Power saver on battery, Balanced on AC. Best performance stays a manual choice, so the fan never ramps for a reason that isn't heat."
                                Style="{StaticResource RowDescriptionStyle}" />
                     </VerticalStackLayout>
                     <Switch x:Name="PowerPlanSwitch"
@@ -243,7 +244,8 @@
                     <Path Grid.Column="0" Data="{StaticResource IconStartup}" Style="{StaticResource RowIconStyle}" />
                     <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                         <Label Text="Start with Windows" Style="{StaticResource RowTitleStyle}" />
-                        <Label Text="Registers an elevated logon task, so these settings hold across reboots without a UAC prompt every time."
+                        <Label x:Name="StartupDescription"
+                               Text="Registers an elevated logon task, so these settings hold across reboots without a UAC prompt every time."
                                Style="{StaticResource RowDescriptionStyle}" />
                     </VerticalStackLayout>
                     <Switch x:Name="StartupSwitch"

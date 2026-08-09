@@ -1,15 +1,8 @@
 using System.Management;
 using System.Windows.Forms;
+using PowerHelper.Abstractions;
 
-namespace PowerHelper.Services;
-
-public readonly record struct BatteryStatus(
-    bool BatteryPresent,
-    int PercentCharged,
-    bool PluggedIn,
-    bool Charging,
-    TimeSpan? TimeRemaining,
-    string Description);
+namespace PowerHelper.Windows;
 
 /// <summary>
 /// Combines Windows' own discharge-time estimate (SystemInformation.PowerStatus, which
@@ -17,7 +10,7 @@ public readonly record struct BatteryStatus(
 /// projection) with the ACPI root\WMI battery classes for charge rate, which Windows'
 /// public power APIs don't expose a time-to-full for at all.
 /// </summary>
-public sealed class BatteryStatusService
+public sealed class WindowsBatteryReader : IBatteryReader
 {
     private DateTime? _lastSampleTimeUtc;
     private uint? _lastSampleCapacity;
@@ -28,7 +21,7 @@ public sealed class BatteryStatusService
         var powerStatus = SystemInformation.PowerStatus;
         if (powerStatus.BatteryChargeStatus.HasFlag(BatteryChargeStatus.NoSystemBattery))
         {
-            return new BatteryStatus(false, 0, false, false, null, "No battery detected");
+            return new BatteryStatus(false, 0, true, false, null, "No battery detected");
         }
 
         var percent = (int)Math.Round(powerStatus.BatteryLifePercent * 100);

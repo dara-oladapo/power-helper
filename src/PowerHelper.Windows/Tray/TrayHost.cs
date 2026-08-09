@@ -2,6 +2,8 @@ using System.Drawing;
 using System.Windows.Forms;
 using PowerHelper.Core;
 using PowerHelper.Services;
+using PowerHelper.Abstractions;
+using PowerHelper.Windows;
 
 namespace PowerHelper.Tray;
 
@@ -145,25 +147,28 @@ public sealed class TrayHost : IDisposable
     private void BuildMenu()
     {
         _batteryLabel = new ToolStripLabel("Battery: checking…");
-        _gpuLabel = new ToolStripLabel(_engine.GpuPresent ? "Discrete GPU: checking…" : "No discrete GPU detected");
+        _gpuLabel = new ToolStripLabel(_engine.GpuSupport.IsSupported ? "Discrete GPU: checking…" : "No discrete GPU detected");
 
         _manualGpuItem = new ToolStripMenuItem("Enable dGPU now", null, OnManualGpuClicked)
         {
-            Enabled = _engine.GpuPresent,
+            Enabled = _engine.GpuSupport.IsSupported,
         };
 
         _autoDisableItem = new ToolStripMenuItem("Disable discrete GPU", null, OnToggleAutoDisable)
         {
-            Enabled = _engine.GpuPresent,
+            Enabled = _engine.GpuSupport.IsSupported,
         };
-        _powerPlanItem = new ToolStripMenuItem("Switch to the Power saver plan", null, OnTogglePowerPlan);
-        _refreshRateItem = new ToolStripMenuItem("Drop to 60 Hz", null, OnToggleRefreshRate)
+        _powerPlanItem = new ToolStripMenuItem($"Switch to the {_engine.BatteryProfileName} plan", null, OnTogglePowerPlan)
         {
-            Enabled = _engine.RefreshRateThrottleSupported,
+            Enabled = _engine.PowerProfileSupport.IsSupported,
+        };
+        _refreshRateItem = new ToolStripMenuItem($"Drop to {PowerHelperEngine.ThrottledRefreshRate} Hz", null, OnToggleRefreshRate)
+        {
+            Enabled = _engine.RefreshRateSupport.IsSupported,
         };
         _brightnessItem = new ToolStripMenuItem("Lock brightness", null, OnToggleBrightness)
         {
-            Enabled = _engine.BrightnessSupported,
+            Enabled = _engine.BrightnessSupport.IsSupported,
         };
 
         // Four policies that all answer the same question - "what should happen when I
@@ -179,7 +184,10 @@ public sealed class TrayHost : IDisposable
         ]);
 
         _lowBatteryItem = new ToolStripMenuItem("Warn at low battery", null, OnToggleLowBatteryWarning);
-        _startupItem = new ToolStripMenuItem("Start with Windows", null, OnToggleStartup);
+        _startupItem = new ToolStripMenuItem("Start with Windows", null, OnToggleStartup)
+        {
+            Enabled = _engine.StartupSupport.IsSupported,
+        };
         _updateItem = new ToolStripMenuItem("Check for updates…", null, (_, _) => CheckForUpdatesRequested?.Invoke());
 
         _menu = new ContextMenuStrip();
@@ -327,7 +335,7 @@ public sealed class TrayHost : IDisposable
         }
         finally
         {
-            _manualGpuItem.Enabled = _engine.GpuPresent;
+            _manualGpuItem.Enabled = _engine.GpuSupport.IsSupported;
         }
     }
 

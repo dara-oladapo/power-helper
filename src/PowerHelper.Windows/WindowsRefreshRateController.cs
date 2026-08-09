@@ -1,31 +1,46 @@
 using System.Runtime.InteropServices;
+using PowerHelper.Abstractions;
+using PowerHelper.Core;
 
-namespace PowerHelper.Services;
+namespace PowerHelper.Windows;
 
 /// <summary>
 /// Reads/sets the primary display's refresh rate via the standard Win32 display-settings
-/// API (not a Lenovo-specific mechanism - EnumDisplaySettingsEx/ChangeDisplaySettingsEx are
+/// API (not a vendor-specific mechanism - EnumDisplaySettingsEx/ChangeDisplaySettingsEx are
 /// what Windows' own Display Settings page uses). Only targets the primary display; if an
 /// external monitor is ever set as primary this would throttle that instead of the internal
-/// panel, since telling internal vs external apart reliably needs the newer CCD/QueryDisplayConfig
+/// panel, since telling internal from external reliably needs the newer CCD/QueryDisplayConfig
 /// API, which is more P/Invoke surface than this feature currently justifies.
 /// </summary>
-public sealed class RefreshRateService
+public sealed class WindowsRefreshRateController : IRefreshRateController
 {
     private const int EnumCurrentSettings = -1;
-    private const uint DmPelsWidth = 0x80000;
-    private const uint DmPelsHeight = 0x100000;
-    private const uint DmBitsPerPel = 0x40000;
-    private const uint DmDisplayFrequency = 0x400000;
     private const int DispChangeSuccessful = 0;
+    private const int NativeRefreshRateFallback = 60;
 
-    public int? GetCurrentFrequency()
+    public WindowsRefreshRateController()
     {
-        var mode = CreateDevMode();
-        return EnumDisplaySettingsEx(null, EnumCurrentSettings, ref mode, 0) ? mode.dmDisplayFrequency : null;
+        var supported = GetSupportedFrequencies();
+
+        NativeHertz = supported.Length > 0 ? supported[^1] : NativeRefreshRateFallback;
+
+        // One reported mode means there is nothing to throttle to. Reporting that up front
+        // is the difference between a disabled switch that explains itself and one that
+        // looks broken when flipping it does nothing.
+        Support = supported.Length > 1
+            ? CapabilitySupport.Supported
+            : CapabilitySupport.Unavailable("Not available — your display only reports a single refresh rate.");
     }
 
-    public int[] GetSupportedFrequencies()
+    public CapabilitySupport Support { get; }
+
+    public int NativeHertz { get; }
+
+    public bool ThrottleToLowRate() => TrySetFrequency(PowerHelperEngine.ThrottledRefreshRate);
+
+    public bool RestoreNativeRate() => TrySetFrequency(NativeHertz);
+
+    private static int[] GetSupportedFrequencies()
     {
         var current = CreateDevMode();
         if (!EnumDisplaySettingsEx(null, EnumCurrentSettings, ref current, 0))
@@ -47,7 +62,7 @@ public sealed class RefreshRateService
         return [.. frequencies];
     }
 
-    public bool TrySetFrequency(int hertz)
+    private static bool TrySetFrequency(int hertz)
     {
         var current = CreateDevMode();
         if (!EnumDisplaySettingsEx(null, EnumCurrentSettings, ref current, 0))

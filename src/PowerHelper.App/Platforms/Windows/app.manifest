@@ -8,7 +8,7 @@
         <!--
           Enabling/disabling the discrete GPU PnP device requires administrative rights.
           Forcing elevation here means every launch (including the one registered by
-          StartupService for logon) runs with the access it needs, instead of failing
+          WindowsStartupManager for logon) runs with the access it needs, instead of failing
           silently or repeatedly prompting for UAC mid-session.
 
           This is also why the app is unpackaged (WindowsPackageType=None): an MSIX-packaged

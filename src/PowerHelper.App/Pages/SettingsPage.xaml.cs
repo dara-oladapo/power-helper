@@ -1,7 +1,9 @@
 using System.Reflection;
 using PowerHelper.App.Services;
 using PowerHelper.Core;
+using PowerHelper.Abstractions;
 using PowerHelper.Services;
+using PowerHelper.Windows;
 
 namespace PowerHelper.App.Pages;
 
@@ -45,30 +47,44 @@ public partial class SettingsPage : ContentPage
     // ---------------------------------------------------------------- capability gating
 
     /// <summary>
-    /// A control for hardware this machine doesn't have is disabled and says why, rather
-    /// than silently doing nothing when switched.
+    /// A control for something this machine can't do is disabled, and its description is
+    /// replaced with the reason the platform gave.
+    ///
+    /// The wording comes from the implementation rather than from here on purpose: only the
+    /// implementation knows whether the answer is "no NVIDIA adapter on this laptop", "this
+    /// panel has one refresh rate" or "macOS has no API for it", and a UI that guesses
+    /// between those ends up saying something untrue on one of them.
     /// </summary>
     private void ApplyCapabilities()
     {
-        if (!_engine.GpuPresent)
+        Gate(_engine.GpuSupport, GpuRowDescription, AutoDisableGpuSwitch, ManualGpuButton);
+        GpuChip.IsVisible = _engine.GpuSupport.IsSupported;
+
+        Gate(_engine.PowerProfileSupport, PowerPlanDescription, PowerPlanSwitch);
+        Gate(_engine.RefreshRateSupport, RefreshRateDescription, RefreshRateSwitch);
+        Gate(_engine.BrightnessSupport, BrightnessDescription, BrightnessSwitch, BrightnessSlider);
+        Gate(_engine.StartupSupport, StartupDescription, StartupSwitch);
+
+        // "Power saver" on Windows, "Low Power Mode" on macOS - the platform names its own
+        // battery profile, because ours would be wrong on at least one of them.
+        PowerPlanTitle.Text = $"Match the {_engine.BatteryProfileName} profile to the power source";
+    }
+
+    private static void Gate(CapabilitySupport support, Label description, params View[] controls)
+    {
+        if (support.IsSupported)
         {
-            AutoDisableGpuSwitch.IsEnabled = false;
-            ManualGpuButton.IsEnabled = false;
-            GpuRowDescription.Text = "No discrete GPU was detected, so there's nothing to switch off. Every other feature here works without one.";
-            GpuChip.IsVisible = false;
+            return;
         }
 
-        if (!_engine.RefreshRateThrottleSupported)
+        foreach (var control in controls)
         {
-            RefreshRateSwitch.IsEnabled = false;
-            RefreshRateDescription.Text = "Not available — your display only reports a single refresh rate.";
+            control.IsEnabled = false;
         }
 
-        if (!_engine.BrightnessSupported)
+        if (support.Reason is { Length: > 0 } reason)
         {
-            BrightnessSwitch.IsEnabled = false;
-            BrightnessSlider.IsEnabled = false;
-            BrightnessDescription.Text = "Not available — this display doesn't expose brightness control through WMI.";
+            description.Text = reason;
         }
     }
 
@@ -180,7 +196,7 @@ public partial class SettingsPage : ContentPage
 
         // The level rows follow the switch they belong to, so an off policy can't be
         // adjusted in a way that looks like it will take effect.
-        BrightnessLevelRow.IsEnabled = _engine.BrightnessSupported && settings.CapBrightnessOnBattery;
+        BrightnessLevelRow.IsEnabled = _engine.BrightnessSupport.IsSupported && settings.CapBrightnessOnBattery;
         BrightnessLevelRow.Opacity = BrightnessLevelRow.IsEnabled ? 1 : 0.4;
         ThresholdRow.IsEnabled = settings.LowBatteryWarningEnabled;
         ThresholdRow.Opacity = ThresholdRow.IsEnabled ? 1 : 0.4;
@@ -337,7 +353,7 @@ public partial class SettingsPage : ContentPage
         finally
         {
             _gpuActionInFlight = false;
-            ManualGpuButton.IsEnabled = _engine.GpuPresent;
+            ManualGpuButton.IsEnabled = _engine.GpuSupport.IsSupported;
             Render(_engine.LastStatus);
         }
     }

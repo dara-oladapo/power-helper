@@ -77,14 +77,14 @@ internal sealed class MacStartupManager : IStartupManager
     {
         try
         {
-            var executable = Environment.ProcessPath;
-            if (string.IsNullOrEmpty(executable))
+            var bundle = FindAppBundle(Environment.ProcessPath);
+            if (bundle is null)
             {
                 return false;
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(AgentPath)!);
-            File.WriteAllText(AgentPath, BuildPlist(executable));
+            File.WriteAllText(AgentPath, BuildPlist(bundle));
 
             // Written and then loaded: without launchctl the agent only takes effect at the
             // next login, which makes the switch look like it didn't work.
@@ -116,7 +116,33 @@ internal sealed class MacStartupManager : IStartupManager
         }
     }
 
-    private static string BuildPlist(string executable) =>
+    /// <summary>
+    /// Walks up from the running executable to the enclosing .app directory.
+    ///
+    /// Environment.ProcessPath points at the Mach-O binary buried inside
+    /// Contents/MacOS, and launching that directly rather than through the bundle skips the
+    /// bundle's Info.plist - which on a Catalyst app means it fails to start properly. The
+    /// LaunchAgent has to hand the bundle to `open` instead.
+    /// </summary>
+    private static string? FindAppBundle(string? executablePath)
+    {
+        if (string.IsNullOrEmpty(executablePath))
+        {
+            return null;
+        }
+
+        for (var directory = Directory.GetParent(executablePath); directory is not null; directory = directory.Parent)
+        {
+            if (directory.Name.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+            {
+                return directory.FullName;
+            }
+        }
+
+        return null;
+    }
+
+    private static string BuildPlist(string bundlePath) =>
         $"""
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -126,7 +152,8 @@ internal sealed class MacStartupManager : IStartupManager
             <string>{Label}</string>
             <key>ProgramArguments</key>
             <array>
-                <string>{System.Security.SecurityElement.Escape(executable)}</string>
+                <string>/usr/bin/open</string>
+                <string>{System.Security.SecurityElement.Escape(bundlePath)}</string>
             </array>
             <key>RunAtLoad</key>
             <true/>

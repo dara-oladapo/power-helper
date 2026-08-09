@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="456" viewBox="0 0 456 456">
+  <!-- Badge only. The bolt lives in appiconfg.svg so the resizetizer can compose and
+       pad it correctly for every target size. -->
+  <rect width="456" height="456" rx="96" ry="96" fill="#1A1A18"/>
+</svg>

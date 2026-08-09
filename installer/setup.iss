@@ -1,13 +1,16 @@
 ; Inno Setup script for Power Helper. Build with:
-;   iscc /DAppVersion=0.1.0 /DSourceExe=C:\full\path\to\publish\PowerHelper.exe installer\setup.iss
-; SourceExe should point at the self-contained single-file exe from `dotnet publish`
-; (see .github/workflows/release.yml for the exact publish command CI uses).
+;   iscc /DAppVersion=0.2.0 /DSourceDir=C:\full\path\to\publish installer\setup.iss
+;
+; SourceDir points at the whole `dotnet publish` output directory, not a single exe. The app
+; head is .NET MAUI on WinUI 3, which does not support PublishSingleFile, so the payload is a
+; folder containing PowerHelper.exe alongside the self-contained .NET and Windows App SDK
+; runtimes. See .github/workflows/release.yml for the exact publish command CI uses.
 
 #ifndef AppVersion
 #define AppVersion "0.0.0"
 #endif
-#ifndef SourceExe
-#define SourceExe "..\publish\PowerHelper.exe"
+#ifndef SourceDir
+#define SourceDir "..\publish"
 #endif
 
 [Setup]
@@ -39,7 +42,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
 
 [Files]
-Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "PowerHelper.exe"; Flags: ignoreversion
+; recursesubdirs/createallsubdirs because a WinUI publish output is a tree, not a file:
+; runtime assemblies, native WindowsAppSDK binaries, and the generated icon assets all have
+; to arrive intact or the app fails to start with a missing-dependency error.
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Power Helper"; Filename: "{app}\PowerHelper.exe"

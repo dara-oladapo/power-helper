@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PowerHelper.Windows</RootNamespace>
+    <AssemblyName>PowerHelper.Windows</AssemblyName>
+    <!--
+      The Windows implementations of PowerHelper.Core's abstractions, plus the
+      notification-area icon.
+
+      This is a separate project rather than a Platforms/Windows folder inside the MAUI app
+      (which is where the macOS implementations go, following pc-cleaner) for one reason: the
+      tray needs WinForms, and a project carrying both MAUI's and WinForms' implicit usings
+      has Application, Button, Label, Image and Color ambiguous in every single file.
+      Confining WinForms here means the MAUI app never sees a second UI framework's names.
+
+      The app references this only for its Windows target framework.
+    -->
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PowerHelper.Core\PowerHelper.Core.csproj" />
+  </ItemGroup>
+
+</Project>

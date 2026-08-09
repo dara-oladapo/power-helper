@@ -1,0 +1,87 @@
+name: A feature isn't available on my machine
+description: A switch is greyed out, the discrete GPU isn't detected, or a feature does nothing on your particular laptop.
+title: "[Hardware] "
+labels: ["hardware-compat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Power Helper was built against one machine — a Lenovo Legion with NVIDIA Optimus — and every feature reaches hardware through an interface that not every laptop implements the same way. A greyed-out switch is usually the app correctly reporting that it can't do something here, rather than a failure. That still makes it worth filing: knowing which laptops fall outside the current detection is how it gets widened.
+
+        Useful context before you write:
+
+        - **Discrete GPU** needs a PnP display adapter reporting NVIDIA. AMD dGPUs and machines with the dGPU hidden behind a MUX/hybrid mode are not currently detected.
+        - **Brightness** goes through the standard WMI monitor classes. Desktop monitors on HDMI/DisplayPort generally do not expose these — this is a laptop-panel feature.
+        - **Refresh rate** needs the primary display to report more than one mode at your current resolution. Note that it only ever targets the *primary* display, so an external monitor set as primary is what gets throttled.
+
+  - type: dropdown
+    id: feature
+    attributes:
+      label: Which feature
+      options:
+        - Discrete GPU switching
+        - Brightness lock
+        - Refresh rate
+        - Power plan switching
+        - Battery percentage or time remaining
+    validations:
+      required: true
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: What you see
+      options:
+        - The switch is greyed out and says it isn't available
+        - The switch works but nothing actually changes
+        - It's detected but reports the wrong thing
+    validations:
+      required: true
+
+  - type: input
+    id: machine
+    attributes:
+      label: Laptop make and model
+      placeholder: Lenovo Legion 5 Pro 16ARH7H
+    validations:
+      required: true
+
+  - type: input
+    id: gpus
+    attributes:
+      label: Graphics hardware
+      description: Both adapters if there are two — Device Manager → Display adapters lists them.
+      placeholder: AMD Radeon 680M (integrated) + NVIDIA GeForce RTX 3070 Ti (discrete)
+    validations:
+      required: true
+
+  - type: input
+    id: display
+    attributes:
+      label: Display you're using
+      description: Only needed for brightness or refresh rate reports.
+      placeholder: Built-in 165 Hz panel, no external monitor attached
+
+  - type: input
+    id: os
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Power Helper version
+      placeholder: 0.2.0
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This isn't a request for macOS or Linux support. Every feature here is a Windows API with no cross-platform equivalent; there is no port to be had.
+        - label: I've searched existing issues for the same machine or the same chip.

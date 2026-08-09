@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!--
+      Power Helper's palette is WinUI 3's Fluent token set, not an invented one, and that is
+      the whole design position: this window is a settings surface for Windows' own power
+      hardware, opened for eight seconds at a time from the notification area. It should be
+      indistinguishable from the Settings page it sits beside.
+
+      That is the opposite bet to pc-cleaner, which earns a palette of its own because it is
+      a full-window app you sit inside and work in. Different job, different answer. See
+      DESIGN.md.
+
+      There is no accent colour in this file on purpose. The accent belongs to the user, not
+      to us: WinUI's Switch, Slider and Button already paint themselves with the system
+      accent, and the one place the app draws its own accent fill (the charge meter) reads
+      the real value out of the registry at runtime. See SystemThemeService.
+    -->
+
+    <!-- Light -->
+    <Color x:Key="Layer">#F3F3F3</Color>
+    <Color x:Key="Card">#FFFFFF</Color>
+    <Color x:Key="CardStroke">#E5E5E5</Color>
+    <Color x:Key="SubtleFill">#E9E9E9</Color>
+    <Color x:Key="Divider">#EAEAEA</Color>
+    <Color x:Key="TextPrimary">#1B1B1B</Color>
+    <Color x:Key="TextSecondary">#5D5D5D</Color>
+    <Color x:Key="CautionFill">#FFF4CE</Color>
+    <Color x:Key="CautionStroke">#EDD9A0</Color>
+    <Color x:Key="CautionText">#9D5D00</Color>
+    <Color x:Key="CriticalFill">#FDE7E9</Color>
+    <Color x:Key="CriticalStroke">#F0C7CB</Color>
+    <Color x:Key="CriticalText">#C42B1C</Color>
+
+    <!-- Dark. Intentional values, not the light set inverted - #202020/#2B2B2B are the
+         layer and card fills Windows itself uses, and a true black would sit wrong beside
+         every other window on the desktop. -->
+    <Color x:Key="LayerDark">#202020</Color>
+    <Color x:Key="CardDark">#2B2B2B</Color>
+    <Color x:Key="CardStrokeDark">#303030</Color>
+    <Color x:Key="SubtleFillDark">#383838</Color>
+    <Color x:Key="DividerDark">#303030</Color>
+    <Color x:Key="TextPrimaryDark">#FFFFFF</Color>
+    <Color x:Key="TextSecondaryDark">#C5C5C5</Color>
+    <Color x:Key="CautionFillDark">#433519</Color>
+    <Color x:Key="CautionStrokeDark">#5C4A22</Color>
+    <Color x:Key="CautionTextDark">#FCE100</Color>
+    <Color x:Key="CriticalFillDark">#442726</Color>
+    <Color x:Key="CriticalStrokeDark">#5C3634</Color>
+    <Color x:Key="CriticalTextDark">#FF99A4</Color>
+
+    <!--
+      There is deliberately no Accent token here. WinUI's Switch, Slider and Button already
+      paint themselves with the user's system accent, and the single place the app draws its
+      own accent fill - the charge meter - reads the real value out of the registry at
+      runtime (SettingsPage.ApplyAccent). A hardcoded accent in this file would be a value
+      that quietly stops matching the rest of the desktop.
+    -->
+
+    <!--
+      Brush equivalents for the handful of tokens that land on Brush properties (Border.Stroke,
+      Shape.Stroke) rather than Color ones. Declared rather than relying on a Color-to-Brush
+      conversion inside a Setter, which XAML does not perform.
+    -->
+    <SolidColorBrush x:Key="CardStrokeBrush" Color="{StaticResource CardStroke}" />
+    <SolidColorBrush x:Key="CardStrokeDarkBrush" Color="{StaticResource CardStrokeDark}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+    <SolidColorBrush x:Key="TextSecondaryDarkBrush" Color="{StaticResource TextSecondaryDark}" />
+    <SolidColorBrush x:Key="CautionStrokeBrush" Color="{StaticResource CautionStroke}" />
+    <SolidColorBrush x:Key="CautionStrokeDarkBrush" Color="{StaticResource CautionStrokeDark}" />
+    <SolidColorBrush x:Key="CriticalStrokeBrush" Color="{StaticResource CriticalStroke}" />
+    <SolidColorBrush x:Key="CriticalStrokeDarkBrush" Color="{StaticResource CriticalStrokeDark}" />
+    <SolidColorBrush x:Key="TransparentBrush" Color="Transparent" />
+
+</ResourceDictionary>

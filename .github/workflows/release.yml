@@ -9,7 +9,19 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+  windows:
+    name: Windows
+    needs: version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,31 +31,38 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Extract version from tag
-        id: version
-        shell: bash
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Install MAUI workload
+        run: dotnet workload install maui-windows --skip-sign-check
 
-      # Self-contained + single-file: one .exe that bundles the .NET runtime, so it runs on
-      # any Windows 10/11 machine with no separate install step. Trimming is deliberately
-      # left off - this app leans on WMI/reflection (System.Management) that trimming can
-      # break silently.
+      # Self-contained, unpackaged, and a directory rather than a single file.
+      #
+      # WinUI 3 - which the MAUI Windows head is built on - does not support
+      # PublishSingleFile, so the one-file portable exe earlier versions shipped is not
+      # producible from this stack. WindowsAppSDKSelfContained bundles the Windows App SDK
+      # runtime alongside the .NET runtime, which is what keeps "no separate install step"
+      # true for the user even though the payload is now a folder.
+      #
+      # Trimming stays off deliberately: this app leans on WMI/reflection
+      # (System.Management) that trimming can break silently.
       - name: Publish
         run: >
-          dotnet publish src/PowerHelper/PowerHelper.csproj
+          dotnet publish src/PowerHelper.App/PowerHelper.App.csproj
           -c Release
+          -f net10.0-windows10.0.19041.0
           -r win-x64
           --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:Version=${{ steps.version.outputs.version }}
+          -p:WindowsPackageType=None
+          -p:WindowsAppSDKSelfContained=true
+          -p:Version=${{ needs.version.outputs.version }}
+          -p:ApplicationDisplayVersion=${{ needs.version.outputs.version }}
           -o publish
 
-      - name: Rename artifact
-        shell: bash
-        # Copy, not move: the installer step below still needs publish/PowerHelper.exe as
-        # its source file.
-        run: cp publish/PowerHelper.exe "PowerHelper-${{ steps.version.outputs.version }}-win-x64.exe"
+      - name: Package portable archive
+        shell: pwsh
+        run: >
+          Compress-Archive
+          -Path publish\*
+          -DestinationPath "PowerHelper-${{ needs.version.outputs.version }}-win-x64.zip"
 
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
@@ -52,21 +71,79 @@ jobs:
         shell: cmd
         run: >
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          /DAppVersion=${{ steps.version.outputs.version }}
-          /DSourceExe="${{ github.workspace }}\publish\PowerHelper.exe"
+          /DAppVersion=${{ needs.version.outputs.version }}
+          /DSourceDir="${{ github.workspace }}\publish"
           installer\setup.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            PowerHelper-*.zip
+            installer-output/*.exe
+
+  macos:
+    name: macOS
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-maccatalyst --skip-sign-check
+
+      # Universal, so one download covers Apple Silicon and the Intel Macs that can still
+      # run it. RuntimeIdentifiers (plural) is what asks for a fat binary; the semicolon is
+      # URL-encoded because MSBuild otherwise reads it as a property separator.
+      - name: Publish
+        run: >
+          dotnet publish src/PowerHelper.App/PowerHelper.App.csproj
+          -c Release
+          -f net10.0-maccatalyst
+          -p:RuntimeIdentifiers=maccatalyst-x64%3Bmaccatalyst-arm64
+          -p:CreatePackage=false
+          -p:ApplicationDisplayVersion=${{ needs.version.outputs.version }}
+
+      # ditto rather than zip: it preserves the symlinks and extended attributes inside a
+      # .app bundle, which a plain zip flattens into something macOS refuses to launch.
+      - name: Package app bundle
+        run: |
+          set -euo pipefail
+          APP=$(find src/PowerHelper.App/bin/Release/net10.0-maccatalyst -maxdepth 3 -name "*.app" -type d | head -1)
+          test -n "$APP" || { echo "No .app bundle was produced"; exit 1; }
+          ditto -c -k --keepParent "$APP" "PowerHelper-${{ needs.version.outputs.version }}-macos.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: PowerHelper-*-macos.zip
+
+  release:
+    name: Release
+    needs: [version, windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
       # Pulls just this version's section out of CHANGELOG.md (between its "## [x.y.z]"
       # heading and the next one, or the trailing reference-link block) so the release
       # notes are the hand-written changelog entry, not GitHub's auto-generated
-      # compare-link stub (all it can produce here, since this repo pushes straight to
-      # main with no PRs to summarize). Uses index() rather than a dynamically-built
-      # regex - tested locally and confirmed some awk builds silently mis-escape "\[ver\]"
-      # into a bare character class that matches almost any line.
+      # compare-link stub. Uses index() rather than a dynamically-built regex - tested
+      # locally and confirmed some awk builds silently mis-escape "\[ver\]" into a bare
+      # character class that matches almost any line.
       - name: Extract changelog section
         shell: bash
         run: |
-          awk -v ver="${{ steps.version.outputs.version }}" '
+          awk -v ver="${{ needs.version.outputs.version }}" '
           /^## \[/ {
             if (found) exit
             if (index($0, "[" ver "]") > 0) { found=1; next }
@@ -75,10 +152,21 @@ jobs:
           found { print }
           ' CHANGELOG.md > release-notes.md
 
+          # The macOS build is not signed or notarised, so Gatekeeper will refuse it on a
+          # first double-click. Saying so in the notes is better than letting people
+          # conclude the download is broken.
+          cat >> release-notes.md <<'EOF'
+
+          ---
+
+          **macOS note:** the `.app` is unsigned and un-notarised, so the first launch needs
+          right-click → Open (or *System Settings → Privacy & Security → Open Anyway*).
+          macOS also supports far less of this app than Windows does — see the support matrix
+          in the README for exactly which settings are available there and why.
+          EOF
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            PowerHelper-*.exe
-            installer-output/*.exe
+          files: artifacts/**/*
           body_path: release-notes.md

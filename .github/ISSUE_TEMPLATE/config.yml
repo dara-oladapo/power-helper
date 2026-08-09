@@ -1,0 +1,9 @@
+# Templates cover bugs, stranded hardware state, hardware compatibility, and feature
+# requests. Anything else — a question, a packaging problem, an idea that isn't a request
+# yet — belongs in Discussions rather than being forced into one of the forms.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Question or general discussion
+    url: https://github.com/dara-oladapo/power-helper/discussions
+    about: Not sure whether something is a bug? Ask here first — no template to fill in.

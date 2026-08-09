@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PowerHelper.App/PowerHelper.App.csproj" />
+    <Project Path="src/PowerHelper.Core/PowerHelper.Core.csproj" />
+    <Project Path="src/PowerHelper.Windows/PowerHelper.Windows.csproj" />
+  </Folder>
+</Solution>

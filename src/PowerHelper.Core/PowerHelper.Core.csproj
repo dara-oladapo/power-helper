@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Platform-neutral, and that is the point: net10.0 rather than net10.0-windows, no
+      WinForms, no System.Management, no P/Invoke. Everything that touches an actual device
+      lives behind the interfaces in Abstractions/ and is supplied by a per-OS project.
+
+      If a change here needs a Windows API, it belongs in PowerHelper.Windows instead. The
+      target framework is what enforces that, and it is worth keeping strict - the previous
+      shape of this project imported WinForms, which is how a type called FeatureSupport
+      ended up colliding with System.Windows.Forms.FeatureSupport.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PowerHelper</RootNamespace>
+    <AssemblyName>PowerHelper.Core</AssemblyName>
+  </PropertyGroup>
+
+</Project>

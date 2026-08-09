@@ -7,7 +7,11 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  # One job per head, because each needs a different workload and a different host. There is
+  # deliberately no Linux job: .NET MAUI has no Linux target at all, so there is nothing to
+  # build. That is tracked in issue #3 rather than faked with a job that only builds Core.
+  windows:
+    name: Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,8 +21,35 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Restore
-        run: dotnet restore
+      - name: Install MAUI workload
+        run: dotnet workload install maui-windows --skip-sign-check
 
+      # One step, and no --no-restore. A separate restore followed by --no-restore let the
+      # two evaluate the self-contained/RuntimeIdentifier graph differently, so the build
+      # asked for runtime packs the restore hadn't been told to fetch.
+      #
+      # Builds the whole solution: on Windows that covers Core, the Windows implementations
+      # and the app head.
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build --configuration Release
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-maccatalyst --skip-sign-check
+
+      # The app project rather than the solution. PowerHelper.Windows targets net10.0-windows
+      # and needs the Windows Desktop targeting pack, which does not exist on a macOS host —
+      # the app's own reference to it is already conditioned on the Windows target framework,
+      # so building the app alone pulls Core and nothing Windows-specific.
+      - name: Build
+        run: dotnet build src/PowerHelper.App/PowerHelper.App.csproj --configuration Release

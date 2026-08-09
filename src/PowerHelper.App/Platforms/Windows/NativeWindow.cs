@@ -4,7 +4,7 @@ using PowerHelper.Interop;
 using PowerHelper.Windows;
 using MauiWindow = Microsoft.Maui.Controls.Window;
 
-namespace PowerHelper.App.Services;
+namespace PowerHelper.App.Platforms.Windows;
 
 /// <summary>
 /// The handful of things a tray-first app needs from the native window that MAUI doesn't

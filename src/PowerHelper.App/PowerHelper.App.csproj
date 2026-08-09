@@ -2,11 +2,19 @@
 
   <PropertyGroup>
     <!--
-      Windows only, and only ever Windows: every capability this app has (PnP device state,
-      ACPI battery data, WMI brightness, display modes, scheduled tasks) is a Windows API.
-      There is no second head to add, so there is no <TargetFrameworks> list here.
+      One head per host OS, rather than every head everywhere. Building the macOS target
+      needs the maui-maccatalyst workload and an Xcode toolchain, and the Windows target
+      needs maui-windows; asking either CI job to restore the other's workload costs minutes
+      per run for something it cannot build anyway.
+
+      There is deliberately no Linux entry: .NET MAUI has no Linux target at all. That is
+      tracked in issue #3, not papered over here.
     -->
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">net10.0-windows10.0.19041.0</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('osx'))">net10.0-maccatalyst</TargetFrameworks>
+    <!-- Anywhere else, name the Windows head so the failure says "install maui-windows"
+         rather than "TargetFrameworks is empty". -->
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">net10.0-windows10.0.19041.0</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <RootNamespace>PowerHelper.App</RootNamespace>
     <AssemblyName>PowerHelper</AssemblyName>
@@ -31,7 +39,7 @@
       requestedExecutionLevel is ignored and it always runs at medium integrity. Unpackaged
       WinUI 3 is the only shape of MAUI app that can hold the privileges this one needs.
     -->
-    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsPackageType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">None</WindowsPackageType>
 
     <!--
       Required, not a preference. WindowsPackageType=None makes the app self-contained, so
@@ -56,17 +64,18 @@
     <SelfContained>true</SelfContained>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
-    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
 
-    <ApplicationManifest>Platforms\Windows\app.manifest</ApplicationManifest>
+    <ApplicationManifest Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">Platforms\Windows\app.manifest</ApplicationManifest>
 
     <!--
       Replaces the entry point WinUI would generate with Platforms/Windows/Program.cs, which
       takes the single-instance mutex before any window exists. A tray app that can be
       started twice ends up with two icons fighting over the same device.
     -->
-    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <DefineConstants Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

@@ -28,9 +28,23 @@ All settings persist across restarts to `%AppData%\PowerHelper\settings.json`.
 
 ## Platform support
 
-| | Windows | macOS | Linux |
+| Capability | Windows | macOS | Linux |
 |---|---|---|---|
-| Status | **Supported** | Planned | Tracked, not started ([#3](../../issues/3)) |
+| Battery status and time remaining | ✅ | ✅ | [#4](../../issues/4) |
+| Start at login | ✅ | ✅ | [#5](../../issues/5) |
+| Low battery warning | ✅ | ✅ | [#4](../../issues/4) |
+| Disable the discrete GPU on battery | ✅ | ❌ no API | [#5](../../issues/5) |
+| Power profile matched to power source | ✅ | ❌ needs root | [#5](../../issues/5) |
+| Brightness locked on battery | ✅ | ❌ no public API | [#5](../../issues/5) |
+| Refresh rate dropped on battery | ✅ | ❌ no public API | [#5](../../issues/5) |
+| Lives in the tray / menu bar | ✅ | ❌ needs AppKit | [#3](../../issues/3) |
+
+**macOS is a much smaller app, and honestly so.** Four of the seven capabilities have no
+API Apple exposes to a third-party app — Apple Silicon has no discrete GPU to switch, Low
+Power Mode needs root, and neither brightness nor refresh rate is reachable from Mac
+Catalyst. On top of that, a Catalyst app can't create a menu-bar item (`NSStatusItem` needs
+AppKit), so on macOS this is an ordinary windowed battery utility rather than something that
+lives in the background. Every unavailable control is disabled and says why.
 
 Every capability is a per-OS question, and on most operating systems the answer to at least
 one of them is "there is no API for that" — so support is something each platform

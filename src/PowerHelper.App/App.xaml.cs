@@ -1,49 +1,60 @@
 using System.Reflection;
-using Microsoft.UI.Windowing;
 using PowerHelper.App.Pages;
 using PowerHelper.App.Services;
 using PowerHelper.Core;
-using PowerHelper.Windows;
+#if WINDOWS
+using Microsoft.UI.Windowing;
+using PowerHelper.App.Platforms.Windows;
 using PowerHelper.Tray;
+using PowerHelper.Windows;
+#endif
 using MauiWindow = Microsoft.Maui.Controls.Window;
 
 namespace PowerHelper.App;
 
+/// <summary>
+/// The app shell differs by platform more than anything else here, and it is the one place
+/// a genuine <c>#if</c> is the right tool rather than a capability flag.
+///
+/// <para>
+/// On Windows this is a tray-first app: the window starts hidden, closing it hides it again,
+/// and Exit lives in the notification-area menu. On macOS there is no notification area a
+/// Catalyst app can reach — <c>NSStatusItem</c> needs AppKit — so it is an ordinary windowed
+/// app that opens on launch and quits when closed. That is a difference in what the app
+/// <em>is</em> on each platform, not a capability that can be reported.
+/// </para>
+/// </summary>
 public partial class App : Application
 {
     // Long enough after launch that the check isn't competing with the rest of startup for
-    // the disk and the network, and never announces anything unless it finds something.
+    // the disk and the network, and it never announces anything unless it finds something.
     private static readonly TimeSpan StartupUpdateCheckDelay = TimeSpan.FromSeconds(5);
 
     private readonly PowerHelperEngine _engine;
-    private readonly TrayHost _tray;
-    private readonly SystemThemeService _themeService;
     private readonly SettingsPage _page;
 
     private MauiWindow? _window;
+
+#if WINDOWS
+    private readonly TrayHost _tray;
+    private readonly SystemThemeService _themeService;
+
     private bool _shuttingDown;
 
     // Distinguishes MAUI's own activation of the first window at launch, which has to be
     // undone, from every later activation, which is the user actually asking for it.
     private bool _windowEverShown;
 
-    public App(PowerHelperEngine engine, TrayHost tray, SystemThemeService themeService, SettingsPage page)
+    public App(PowerHelperEngine engine, SettingsPage page, TrayHost tray, SystemThemeService themeService)
     {
         _engine = engine;
+        _page = page;
         _tray = tray;
         _themeService = themeService;
-        _page = page;
 
         InitializeComponent();
+        FollowSystemTheme();
 
-        // Follow Windows, full stop. This app deliberately does not offer its own
-        // light/dark override the way pc-cleaner does: that is a reasonable feature for an
-        // app you sit inside for an hour, and noise in a settings surface you open from the
-        // tray for eight seconds. Unspecified keeps tracking the OS, so a desktop that
-        // switches at sunset takes this window with it.
-        UserAppTheme = AppTheme.Unspecified;
-
-        RequestedThemeChanged += (_, _) => OnPersonalisationChanged();
         _themeService.Changed += OnSystemThemeServiceChanged;
 
         _tray.OpenSettingsRequested += () => MainThread.BeginInvokeOnMainThread(ShowSettings);
@@ -54,6 +65,26 @@ public partial class App : Application
 
         _ = ScheduleStartupUpdateCheckAsync();
     }
+#else
+    public App(PowerHelperEngine engine, SettingsPage page)
+    {
+        _engine = engine;
+        _page = page;
+
+        InitializeComponent();
+        FollowSystemTheme();
+
+        _ = ScheduleStartupUpdateCheckAsync();
+    }
+#endif
+
+    /// <summary>
+    /// Follow the OS, full stop. This app deliberately does not offer its own light/dark
+    /// override the way pc-cleaner does: that is reasonable for an app you sit inside for an
+    /// hour, and noise in a settings surface you open for eight seconds. Unspecified keeps
+    /// tracking the OS, so a desktop that switches at sunset takes this window with it.
+    /// </summary>
+    private void FollowSystemTheme() => UserAppTheme = AppTheme.Unspecified;
 
     protected override MauiWindow CreateWindow(IActivationState? activationState)
     {
@@ -66,10 +97,19 @@ public partial class App : Application
             MinimumHeight = 420,
         };
 
+#if WINDOWS
         _window.Created += OnWindowCreated;
         _window.Activated += OnWindowActivated;
+#else
+        // No tray to retreat to, so the window is the app and it polls at the active rate
+        // for as long as it is open.
+        _engine.SetPollInterval(PowerHelperEngine.ActivePollInterval);
+#endif
+
         return _window;
     }
+
+#if WINDOWS
 
     // ---------------------------------------------------------------- window lifetime
 
@@ -149,9 +189,7 @@ public partial class App : Application
 
     // ---------------------------------------------------------------- personalisation
 
-    private void OnSystemThemeServiceChanged() => MainThread.BeginInvokeOnMainThread(OnPersonalisationChanged);
-
-    private void OnPersonalisationChanged()
+    private void OnSystemThemeServiceChanged() => MainThread.BeginInvokeOnMainThread(() =>
     {
         if (_window is not null)
         {
@@ -160,7 +198,9 @@ public partial class App : Application
 
         _page.ApplyAccent();
         _tray.ApplyTheme();
-    }
+    });
+
+#endif
 
     // ---------------------------------------------------------------- updates
 
@@ -183,9 +223,16 @@ public partial class App : Application
         var version = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
         var update = await _engine.CheckForUpdatesAsync(version);
 
+#if WINDOWS
         if (update is null && announce)
         {
             _tray.ShowBalloon("Power Helper", "You're up to date.");
         }
+#else
+        // Nowhere to announce it without a notification-area icon; the footer link in the
+        // window is the only surface macOS has for this.
+        _ = update;
+        _ = announce;
+#endif
     }
 }

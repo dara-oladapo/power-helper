@@ -7,6 +7,8 @@ using PowerHelper.Platform;
 #if WINDOWS
 using PowerHelper.Tray;
 using PowerHelper.Windows;
+#elif MACCATALYST
+using PowerHelper.App.Platforms.MacCatalyst;
 #endif
 
 namespace PowerHelper.App;
@@ -47,6 +49,8 @@ public static class MauiProgram
     {
 #if WINDOWS
         return WindowsPlatformServices.Create();
+#elif MACCATALYST
+        return MacPlatformServices.Create();
 #else
         // .NET MAUI has no Linux head, so this branch is currently unreachable in a shipped
         // build. It exists so the abstraction is exercised by something other than Windows

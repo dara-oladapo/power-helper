@@ -3,7 +3,9 @@ using PowerHelper.App.Services;
 using PowerHelper.Core;
 using PowerHelper.Abstractions;
 using PowerHelper.Services;
+#if WINDOWS
 using PowerHelper.Windows;
+#endif
 
 namespace PowerHelper.App.Pages;
 
@@ -90,13 +92,24 @@ public partial class SettingsPage : ContentPage
 
     /// <summary>
     /// The charge meter is the only thing on this page that paints its own accent fill -
-    /// every control gets the system accent from WinUI for free. Re-applied whenever the
-    /// user changes their accent or app mode.
+    /// every control gets the system accent from the platform for free. Re-applied whenever
+    /// the user changes their accent or app mode.
+    ///
+    /// Windows publishes the accent in the registry, so the meter can match the rest of the
+    /// desktop exactly. Mac Catalyst has no equivalent a third-party app can read, so the
+    /// meter falls back to the same blue Windows ships as its default - deliberately a plain
+    /// value rather than a guess at what the user picked.
     /// </summary>
     public void ApplyAccent()
     {
+#if WINDOWS
         var accent = SystemThemeService.CurrentAccent(SystemThemeService.CurrentTheme);
         _accentColor = Color.FromRgb(accent.R, accent.G, accent.B);
+#else
+        _accentColor = Application.Current?.RequestedTheme == AppTheme.Dark
+            ? Color.FromArgb("#4CC2FF")
+            : Color.FromArgb("#005A9E");
+#endif
         Render(_engine.LastStatus);
     }
 

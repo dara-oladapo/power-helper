@@ -57,6 +57,20 @@ jobs:
           -p:ApplicationDisplayVersion=${{ needs.version.outputs.version }}
           -o publish
 
+      # Published into the same "publish" folder as the app above, so the portable archive
+      # and the installer (which just copies SourceDir\* - see installer/setup.iss) both pick
+      # it up without any changes on their end. This is the elevated GPU-toggle helper the
+      # app runs via a scheduled task instead of running itself as admin - see
+      # WindowsGpuController and PowerHelper.GpuHelper's own project comment.
+      - name: Publish GPU helper
+        run: >
+          dotnet publish src/PowerHelper.GpuHelper/PowerHelper.GpuHelper.csproj
+          -c Release
+          -f net10.0-windows
+          -r win-x64
+          --self-contained true
+          -o publish
+
       - name: Package portable archive
         shell: pwsh
         run: >

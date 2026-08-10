@@ -34,10 +34,11 @@
     <Version>0.2.0</Version>
 
     <!--
-      Unpackaged, and it has to be. The app enables and disables a PCI device, which needs
-      administrator rights, and an MSIX-packaged app cannot request elevation at all - its
-      requestedExecutionLevel is ignored and it always runs at medium integrity. Unpackaged
-      WinUI 3 is the only shape of MAUI app that can hold the privileges this one needs.
+      Unpackaged. The app itself runs asInvoker now (see app.manifest - the GPU device toggle
+      that needs admin rights was moved to a separate elevated helper), so MSIX packaging is
+      no longer ruled out by elevation the way it once was. Staying unpackaged is still
+      required for the self-contained deployment reasons below (RuntimeIdentifier,
+      WindowsAppSDKSelfContained) - switching to MSIX would be a separate, deliberate change.
     -->
     <WindowsPackageType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">None</WindowsPackageType>
 

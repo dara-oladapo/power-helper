@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Management;
+using System.Threading;
 using PowerHelper.Abstractions;
 
 namespace PowerHelper.Windows;
@@ -12,6 +14,18 @@ namespace PowerHelper.Windows;
 /// </summary>
 public sealed class WindowsGpuController : IGpuController
 {
+    // The device toggle itself needs admin rights; the app no longer runs elevated, so it is
+    // delegated to a standalone helper exe run through these two pre-registered RunLevel
+    // Highest scheduled tasks. Each task's own principal carries the elevation, so triggering
+    // it via `schtasks /run` needs no UAC prompt from this (unprivileged) process. Two fixed
+    // tasks rather than one parameterised task so no caller-supplied argument ever reaches
+    // the elevated side - see PowerHelper.GpuHelper.
+    private const string EnableTaskName = "PowerHelperGpuEnable";
+    private const string DisableTaskName = "PowerHelperGpuDisable";
+
+    private static readonly object HelperTaskLock = new();
+    private static bool _helperTasksChecked;
+
     private readonly string? _instanceId;
 
     public WindowsGpuController()
@@ -84,36 +98,119 @@ public sealed class WindowsGpuController : IGpuController
         return GpuState.NotFound;
     }
 
-    public bool Disable() => _instanceId is { } id && RunPnputil("disable-device", id);
+    public bool Disable() => _instanceId is not null && RunHelperTask(DisableTaskName, GpuState.Disabled);
 
-    public bool Enable() => _instanceId is { } id && RunPnputil("enable-device", id);
+    public bool Enable() => _instanceId is not null && RunHelperTask(EnableTaskName, GpuState.Enabled);
 
     private static string EscapeForWmi(string value) => value.Replace("\\", "\\\\");
 
-    private static bool RunPnputil(string action, string instanceId)
+    private bool RunHelperTask(string taskName, GpuState desiredState)
+    {
+        EnsureHelperTasksRegistered();
+
+        ProcessRunner.RunAndWait(new ProcessStartInfo
+        {
+            FileName = "schtasks.exe",
+            Arguments = $"/Run /TN \"{taskName}\"",
+        });
+
+        // `schtasks /Run` starts the task asynchronously and doesn't hand back the task's own
+        // exit code, so success is confirmed by re-reading the device state - the same
+        // "trust what happened, not what was asked for" idiom PowerHelperEngine uses for
+        // startup registration.
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (GetState() == desiredState)
+            {
+                return true;
+            }
+
+            Thread.Sleep(150);
+        }
+
+        return GetState() == desiredState;
+    }
+
+    /// <summary>
+    /// Creates the two helper scheduled tasks the first time this process needs them. An
+    /// installer-based install already registers both (see installer/setup.iss), so in the
+    /// common case this is just two quick `schtasks /Query` calls that find nothing to do.
+    /// Running from source without the installer is the case this covers: task creation with
+    /// RunLevel Highest itself needs elevation, so it is done once via a single UAC prompt on
+    /// schtasks.exe alone, not on this process.
+    /// </summary>
+    private static void EnsureHelperTasksRegistered()
+    {
+        lock (HelperTaskLock)
+        {
+            if (_helperTasksChecked)
+            {
+                return;
+            }
+
+            _helperTasksChecked = true;
+
+            if (TaskExists(EnableTaskName) && TaskExists(DisableTaskName))
+            {
+                return;
+            }
+
+            var helperPath = FindHelperExePath();
+            if (helperPath is null)
+            {
+                return;
+            }
+
+            CreateTaskElevated(EnableTaskName, helperPath, "enable");
+            CreateTaskElevated(DisableTaskName, helperPath, "disable");
+        }
+    }
+
+    private static bool TaskExists(string taskName) => ProcessRunner.RunAndWait(new ProcessStartInfo
+    {
+        FileName = "schtasks.exe",
+        Arguments = $"/Query /TN \"{taskName}\"",
+    });
+
+    private static void CreateTaskElevated(string taskName, string helperPath, string verbArg)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = "pnputil.exe",
-            ArgumentList = { $"/{action}", instanceId },
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
+            FileName = "schtasks.exe",
+            Arguments = $"/Create /TN \"{taskName}\" /TR \"\\\"{helperPath}\\\" {verbArg}\" /RL HIGHEST /F",
+            UseShellExecute = true,
+            Verb = "runas",
         };
 
-        using var process = Process.Start(startInfo);
-        if (process is null)
+        try
         {
-            return false;
+            using var process = Process.Start(startInfo);
+            process?.WaitForExit();
+        }
+        catch (Win32Exception)
+        {
+            // The user declined the UAC prompt. Enable()/Disable() will keep failing until
+            // this succeeds on a later attempt - there's no silent workaround for "the user
+            // said no to installing the one thing that needs admin rights".
+        }
+    }
+
+    private static string? FindHelperExePath()
+    {
+        var exePath = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(exePath))
+        {
+            return null;
         }
 
-        // Redirected streams must be drained before/while waiting - leaving them unread
-        // has caused later calls in the same process to silently stop taking effect
-        // (see WindowsPowerProfileController, where this was diagnosed against powercfg.exe).
-        process.StandardOutput.ReadToEnd();
-        process.StandardError.ReadToEnd();
-        process.WaitForExit();
-        return process.ExitCode == 0;
+        var directory = Path.GetDirectoryName(exePath);
+        if (directory is null)
+        {
+            return null;
+        }
+
+        var helperPath = Path.Combine(directory, "PowerHelper.GpuHelper.exe");
+        return File.Exists(helperPath) ? helperPath : null;
     }
 }

@@ -10,7 +10,7 @@ A lightweight Windows tray utility for laptop power management. The discrete-GPU
 - **Refresh rate throttling on battery** — drops to 60Hz to save power, restores your native rate on AC or when the app exits.
 - **Brightness locked on battery** — caps the panel to a level you set whenever unplugged, and restores exactly what you had (not a guessed default) when you plug back in or exit the app.
 - **Low battery warning** — a toast notification at a threshold you set, with hysteresis so it doesn't repeat every poll.
-- **Starts with Windows** — registers an elevated logon task, so it doesn't repeatedly prompt for UAC.
+- **Starts with Windows** — registers a logon task.
 - **Looks like Windows** — the settings window follows your light/dark mode and accent colour, and so does the tray menu. Set it to **System**, **Light** or **Dark**; System is the default and tracks your OS setting as it changes.
 - **Update checker** — checks GitHub Releases shortly after startup and notifies you if a newer version is out; "Check for Updates..." in the tray menu triggers it manually anytime. Purely informational — it never downloads or installs anything on its own.
 
@@ -59,17 +59,17 @@ options are laid out in [#3](../../issues/3), with the per-feature work in
 ## Requirements
 
 - Windows 10/11
-- Administrator rights (required to enable/disable the GPU device and manage the startup task — the app always runs elevated)
+- An administrator account, if you have a discrete GPU — the app itself runs unprivileged, but enabling/disabling the GPU device needs admin rights, delegated to a small elevated helper task rather than the whole app running as admin (see [DESIGN.md](DESIGN.md))
 - NVIDIA Optimus (Intel/AMD integrated + NVIDIA discrete graphics) only for the dGPU toggle; every other feature works on any Windows laptop, and the dGPU card just disables itself if no discrete GPU is found
 
 ## Installation
 
 Grab the latest release from the [Releases](../../releases) page — two options, both self-contained (no separate .NET or Windows App SDK install needed):
 
-- **`PowerHelper-Setup-X.Y.Z.exe`** (recommended) — installs to Program Files, adds a Start Menu entry and optional desktop shortcut, and gives you a proper uninstaller (also cleans up the startup scheduled task if you had it enabled).
-- **`PowerHelper-X.Y.Z-win-x64.zip`** — the portable build. Unzip anywhere and run `PowerHelper.exe`.
+- **`PowerHelper-Setup-X.Y.Z.exe`** (recommended) — installs to Program Files, adds a Start Menu entry and optional desktop shortcut, registers the GPU-toggle helper tasks up front (see [Requirements](#requirements)), and gives you a proper uninstaller (also cleans up the scheduled tasks).
+- **`PowerHelper-X.Y.Z-win-x64.zip`** — the portable build. Unzip anywhere and run `PowerHelper.exe`. The first time you toggle the GPU, you'll get a single UAC prompt to register the same helper tasks the installer would have set up; none after that.
 
-Both require administrator rights to run (see [Requirements](#requirements)).
+Neither requires running as administrator — the app itself always launches normally.
 
 > Earlier versions shipped a single portable `.exe`. The UI now runs on .NET MAUI / WinUI 3, which doesn't support single-file publishing, so the portable option is a folder in a `.zip` instead. Nothing else about running it changed.
 
@@ -82,11 +82,13 @@ dotnet workload install maui-windows
 dotnet build
 ```
 
-The built app is at `src/PowerHelper.App/bin/Debug/net10.0-windows10.0.19041.0/win-x64/PowerHelper.exe`. Since it needs to enable/disable a PCI device, run it as Administrator.
+The built app is at `src/PowerHelper.App/bin/Debug/net10.0-windows10.0.19041.0/win-x64/PowerHelper.exe`. It runs unprivileged; the first GPU toggle prompts once for admin rights to register the helper tasks described in [Requirements](#requirements).
 
-The solution is two projects:
+The solution is four projects:
 
-- **`src/PowerHelper.Core`** — the services that talk to hardware, the engine that owns settings and policy, and the notification-area icon.
+- **`src/PowerHelper.Core`** — the platform-agnostic engine that owns settings and policy.
+- **`src/PowerHelper.Windows`** — the Windows implementations (WMI, P/Invoke) and the notification-area icon.
+- **`src/PowerHelper.GpuHelper`** — the small standalone helper that actually enables/disables the GPU device, run elevated via a scheduled task instead of the app itself running as admin.
 - **`src/PowerHelper.App`** — the .NET MAUI settings window.
 
 See [DESIGN.md](DESIGN.md) for why the split falls there, and [docs/UX-AUDIT.md](docs/UX-AUDIT.md) for the UX audit the current UI came out of.

@@ -6,16 +6,13 @@
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
         <!--
-          Enabling/disabling the discrete GPU PnP device requires administrative rights.
-          Forcing elevation here means every launch (including the one registered by
-          WindowsStartupManager for logon) runs with the access it needs, instead of failing
-          silently or repeatedly prompting for UAC mid-session.
-
-          This is also why the app is unpackaged (WindowsPackageType=None): an MSIX-packaged
-          app cannot request elevation at all - this element is ignored and it always runs
-          at medium integrity.
+          The app itself needs no elevated rights: everything it does reads WMI or shells out
+          to unprivileged tools, except enabling/disabling the discrete GPU PnP device, which
+          is delegated to a separate helper (PowerHelper.GpuHelper) run through a
+          pre-registered RunLevel Highest scheduled task instead - see WindowsGpuController.
+          That keeps the privileged surface to that one helper instead of this whole app.
         -->
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
       </requestedPrivileges>
     </security>
   </trustInfo>

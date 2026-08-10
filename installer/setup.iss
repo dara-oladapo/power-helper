@@ -28,8 +28,8 @@ OutputBaseFilename=PowerHelper-Setup-{#AppVersion}
 OutputDir=..\installer-output
 Compression=lzma2
 SolidCompression=yes
-; The app itself always runs elevated (requireAdministrator in its manifest) to
-; enable/disable the GPU device and manage its startup task, so the installer matches.
+; The app itself runs asInvoker (unprivileged) - this is for the installer's own needs:
+; writing to Program Files and registering the elevated GPU-toggle helper tasks below.
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -53,12 +53,20 @@ Name: "{group}\Uninstall Power Helper"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Power Helper"; Filename: "{app}\PowerHelper.exe"; Tasks: desktopicon
 
 [Run]
-; shellexec (not plain CreateProcess) is required here: Setup.exe itself runs elevated, and
-; a directly-elevated process launching another exe that also demands elevation via its own
-; manifest fails with error 740 (ERROR_ELEVATION_REQUIRED) unless routed through the shell.
+; Registers the elevated GPU-toggle helper tasks the app triggers on demand (see
+; WindowsGpuController) - created here, while Setup itself is already elevated, so the app
+; never needs its own UAC prompt for this. WindowsGpuController.EnsureHelperTasksRegistered
+; is the fallback for installs that skip this (e.g. running from source).
+Filename: "{sys}\schtasks.exe"; Parameters: "/Create /TN ""PowerHelperGpuEnable"" /TR ""\""{app}\PowerHelper.GpuHelper.exe\"" enable"" /RL HIGHEST /F"; Flags: runhidden
+Filename: "{sys}\schtasks.exe"; Parameters: "/Create /TN ""PowerHelperGpuDisable"" /TR ""\""{app}\PowerHelper.GpuHelper.exe\"" disable"" /RL HIGHEST /F"; Flags: runhidden
+; shellexec (not plain CreateProcess) launches this as the interactive desktop user rather
+; than inheriting Setup.exe's own elevated token - the app now runs asInvoker and should not
+; start elevated just because the installer that launched it was.
 Filename: "{app}\PowerHelper.exe"; Description: "Launch Power Helper"; Flags: nowait postinstall skipifsilent shellexec
 
 [UninstallRun]
-; Best-effort cleanup of the logon scheduled task if "Start with Windows" was ever enabled -
-; ignores failure since the task may never have been registered.
+; Best-effort cleanup of the scheduled tasks if they were ever registered - ignores failure
+; since any of them may never have been created.
 Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""PowerHelper"" /F"; Flags: runhidden; RunOnceId: "RemoveStartupTask"
+Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""PowerHelperGpuEnable"" /F"; Flags: runhidden; RunOnceId: "RemoveGpuEnableTask"
+Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""PowerHelperGpuDisable"" /F"; Flags: runhidden; RunOnceId: "RemoveGpuDisableTask"

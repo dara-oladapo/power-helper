@@ -38,13 +38,14 @@ choose.
 `net10.0-maccatalyst`. No Linux head, because MAUI has no Linux target — see
 [#3](https://github.com/dara-oladapo/power-helper/issues/3).
 
-Unpackaged on Windows is not a preference. The app enables and disables a PCI device, which
-needs administrator rights, and **an MSIX-packaged app cannot request elevation** — its
-`requestedExecutionLevel` is ignored and it always runs at medium integrity. Unpackaged
-WinUI 3 is the only shape of MAUI app that can hold the privileges this one needs. The
-consequence is that `PublishSingleFile` is unavailable (WinUI 3 does not support it), so
-releases ship a self-contained folder rather than the single portable `.exe` earlier
-versions had.
+Unpackaged on Windows, but not for elevation anymore: the app itself runs `asInvoker`.
+Enabling/disabling the discrete GPU device does need administrator rights, but that one
+operation is delegated to `PowerHelper.GpuHelper` — a standalone helper exe run through a
+pre-registered `RunLevel Highest` scheduled task, triggered with `schtasks /run` rather than
+by the app requesting elevation for itself. Staying unpackaged is still required for the
+self-contained deployment MAUI/WinUI needs on Windows: `PublishSingleFile` is unavailable
+(WinUI 3 does not support it), so releases ship a self-contained folder rather than a single
+portable `.exe`.
 
 ## Project shape
 
@@ -52,6 +53,7 @@ versions had.
 |---|---|---|
 | `PowerHelper.Core` | `net10.0` | Abstractions, `PowerHelperEngine`, settings, update check |
 | `PowerHelper.Windows` | `net10.0-windows` | Windows implementations + the tray icon |
+| `PowerHelper.GpuHelper` | `net10.0-windows` | Standalone elevated helper — enables/disables the discrete GPU, nothing else |
 | `PowerHelper.App` | per-OS MAUI heads | The settings window; macOS implementations |
 
 Core has **no target platform**: no WinForms, no `System.Management`, no P/Invoke.

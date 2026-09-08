@@ -1,0 +1,42 @@
+name: PR Guardian
+
+# Comments on every open PR with what is blocking it, and squash-merges it once nothing is.
+#
+# The logic lives in dara-oladapo/.github and is shared by every repo in the org, because it only
+# reads check-run results and never builds anything — it was already byte-identical everywhere it
+# had been copied. This file is just the triggers and the permissions, which a caller has to
+# declare for itself.
+#
+# Deliberately NOT triggered on `pull_request`: that would run from the PR head, letting a PR
+# rewrite the guardian judging it. `check_suite` and `schedule` always run from the default branch.
+
+on:
+  check_suite:
+    types: [completed]
+  schedule:
+    # Webhooks do not reliably deliver CI success or merge-conflict transitions, so sweep every
+    # open PR hourly regardless of what did or didn't arrive.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to evaluate (blank = every open PR)"
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+
+concurrency:
+  # Never cancel a run mid-merge; queue instead.
+  group: pr-guardian-${{ github.event.check_suite.head_sha || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    uses: dara-oladapo/.github/.github/workflows/pr-guardian.yml@main
+    with:
+      # inputs is null on the schedule and check_suite triggers, where there is no one PR.
+      pr: ${{ inputs.pr || '' }}

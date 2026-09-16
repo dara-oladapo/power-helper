@@ -64,6 +64,7 @@ public partial class SettingsPage : ContentPage
         GpuChip.IsVisible = _engine.GpuSupport.IsSupported;
 
         Gate(_engine.PowerProfileSupport, PowerPlanDescription, PowerPlanSwitch);
+        Gate(_engine.BatteryConservationSupport, BatteryConservationDescription, BatteryConservationSwitch);
         Gate(_engine.RefreshRateSupport, RefreshRateDescription, RefreshRateSwitch);
         Gate(_engine.BrightnessSupport, BrightnessDescription, BrightnessSwitch, BrightnessSlider);
         Gate(_engine.StartupSupport, StartupDescription, StartupSwitch);
@@ -200,6 +201,7 @@ public partial class SettingsPage : ContentPage
 
         AutoDisableGpuSwitch.IsToggled = settings.AutoDisableDgpuOnBattery;
         PowerPlanSwitch.IsToggled = settings.AutoSwitchPowerPlanOnBattery;
+        BatteryConservationSwitch.IsToggled = settings.BatteryConservationModeEnabled;
         RefreshRateSwitch.IsToggled = settings.ThrottleRefreshRateOnBattery;
 
         BrightnessSwitch.IsToggled = settings.CapBrightnessOnBattery;
@@ -285,6 +287,17 @@ public partial class SettingsPage : ContentPage
         }
 
         _engine.Settings.ThrottleRefreshRateOnBattery = e.Value;
+        _engine.NotifySettingsChanged();
+    }
+
+    private void OnBatteryConservationToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_suppressEvents)
+        {
+            return;
+        }
+
+        _engine.Settings.BatteryConservationModeEnabled = e.Value;
         _engine.NotifySettingsChanged();
     }
 

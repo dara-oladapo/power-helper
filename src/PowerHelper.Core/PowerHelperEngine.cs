@@ -79,6 +79,8 @@ public sealed class PowerHelperEngine : IDisposable
 
     public CapabilitySupport BrightnessSupport => _platform.Brightness.Support;
 
+    public CapabilitySupport BatteryConservationSupport => _platform.BatteryConservation.Support;
+
     public CapabilitySupport StartupSupport => _platform.Startup.Support;
 
     /// <summary>Names the battery power profile for the UI - "Power saver", "Low Power Mode".</summary>
@@ -312,6 +314,7 @@ public sealed class PowerHelperEngine : IDisposable
         ApplyPowerProfile(onBattery);
         ApplyRefreshRate(onBattery);
         ApplyBrightness(onBattery);
+        ApplyBatteryConservation();
     }
 
     private void ApplyGpuState(bool onBattery)
@@ -395,6 +398,16 @@ public sealed class PowerHelperEngine : IDisposable
             _platform.Brightness.SetPercent(saved);
             _brightnessBeforeCap = null;
         }
+    }
+
+    private void ApplyBatteryConservation()
+    {
+        if (!_platform.BatteryConservation.Support.IsSupported)
+        {
+            return;
+        }
+
+        _platform.BatteryConservation.SetEnabled(Settings.BatteryConservationModeEnabled);
     }
 
     // ---------------------------------------------------------------- updates

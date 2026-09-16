@@ -85,6 +85,18 @@ public interface IBrightnessController
     bool SetPercent(int percent);
 }
 
+/// <summary>
+/// Controls battery conservation mode (charge limiting) when the platform exposes it.
+/// </summary>
+public interface IBatteryConservationController
+{
+    CapabilitySupport Support { get; }
+
+    bool IsEnabled();
+
+    bool SetEnabled(bool enabled);
+}
+
 public readonly record struct BatteryStatus(
     bool BatteryPresent,
     int PercentCharged,
@@ -127,6 +139,7 @@ public sealed record PlatformServices(
     IPowerProfileController PowerProfile,
     IRefreshRateController RefreshRate,
     IBrightnessController Brightness,
+    IBatteryConservationController BatteryConservation,
     IBatteryReader Battery,
     IPowerSourceMonitor PowerSource,
     IStartupManager Startup);

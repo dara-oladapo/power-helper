@@ -30,6 +30,7 @@ public static class UnsupportedPlatform
         new UnsupportedPowerProfileController(reason),
         new UnsupportedRefreshRateController(reason),
         new UnsupportedBrightnessController(reason),
+        new UnsupportedBatteryConservationController(reason),
         new UnknownBatteryReader(),
         new NoPowerSourceMonitor(),
         new UnsupportedStartupManager(reason));
@@ -75,6 +76,15 @@ public sealed class UnsupportedBrightnessController(string reason) : IBrightness
     public int? GetPercent() => null;
 
     public bool SetPercent(int percent) => false;
+}
+
+public sealed class UnsupportedBatteryConservationController(string reason) : IBatteryConservationController
+{
+    public CapabilitySupport Support { get; } = CapabilitySupport.Unavailable(reason);
+
+    public bool IsEnabled() => false;
+
+    public bool SetEnabled(bool enabled) => false;
 }
 
 /// <summary>

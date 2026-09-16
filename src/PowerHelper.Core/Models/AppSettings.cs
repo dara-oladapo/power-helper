@@ -32,6 +32,8 @@ public sealed class AppSettings
 
     public int BatteryBrightnessPercent { get; set; } = 50;
 
+    public bool BatteryConservationModeEnabled { get; set; }
+
     /// <summary>
     /// Defaults to <see cref="ThemePreference.System"/>, which is also what every settings
     /// file written before this setting existed deserialises to — a missing property takes

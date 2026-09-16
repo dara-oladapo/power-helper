@@ -48,6 +48,8 @@ internal static class MacPlatformServices
                 "Not available on macOS — there's no public API for changing the display mode, and ProMotion already varies the rate on its own."),
             Brightness: new UnsupportedBrightnessController(
                 "Not available on macOS — brightness isn't reachable from a Mac Catalyst app without private APIs."),
+            BatteryConservation: new UnsupportedBatteryConservationController(
+                "Not available on macOS — battery charge limiting isn't exposed as a public API to third-party Mac Catalyst apps."),
             Battery: new MacBatteryReader(powerSource),
             PowerSource: new MacPowerSourceMonitor(powerSource),
             Startup: new MacStartupManager());

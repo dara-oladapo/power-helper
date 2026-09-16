@@ -36,6 +36,7 @@ public sealed class TrayHost : IDisposable
     private ToolStripMenuItem _automaticItem = null!;
     private ToolStripMenuItem _autoDisableItem = null!;
     private ToolStripMenuItem _powerPlanItem = null!;
+    private ToolStripMenuItem _batteryConservationItem = null!;
     private ToolStripMenuItem _refreshRateItem = null!;
     private ToolStripMenuItem _brightnessItem = null!;
     private ToolStripMenuItem _lowBatteryItem = null!;
@@ -170,6 +171,10 @@ public sealed class TrayHost : IDisposable
         {
             Enabled = _engine.RefreshRateSupport.IsSupported,
         };
+        _batteryConservationItem = new ToolStripMenuItem("Battery conservation mode", null, OnToggleBatteryConservation)
+        {
+            Enabled = _engine.BatteryConservationSupport.IsSupported,
+        };
         _brightnessItem = new ToolStripMenuItem("Lock brightness", null, OnToggleBrightness)
         {
             Enabled = _engine.BrightnessSupport.IsSupported,
@@ -200,6 +205,7 @@ public sealed class TrayHost : IDisposable
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add(_manualGpuItem);
         _menu.Items.Add(_automaticItem);
+        _menu.Items.Add(_batteryConservationItem);
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add(_lowBatteryItem);
         _menu.Items.Add(_startupItem);
@@ -307,6 +313,7 @@ public sealed class TrayHost : IDisposable
 
         _autoDisableItem.Checked = settings.AutoDisableDgpuOnBattery;
         _powerPlanItem.Checked = settings.AutoSwitchPowerPlanOnBattery;
+        _batteryConservationItem.Checked = settings.BatteryConservationModeEnabled;
         _refreshRateItem.Checked = settings.ThrottleRefreshRateOnBattery;
         _brightnessItem.Checked = settings.CapBrightnessOnBattery;
         _brightnessItem.Text = $"Lock brightness to {settings.BatteryBrightnessPercent}%";
@@ -375,6 +382,12 @@ public sealed class TrayHost : IDisposable
     private void OnToggleRefreshRate(object? sender, EventArgs e)
     {
         _engine.Settings.ThrottleRefreshRateOnBattery = !_engine.Settings.ThrottleRefreshRateOnBattery;
+        _engine.NotifySettingsChanged();
+    }
+
+    private void OnToggleBatteryConservation(object? sender, EventArgs e)
+    {
+        _engine.Settings.BatteryConservationModeEnabled = !_engine.Settings.BatteryConservationModeEnabled;
         _engine.NotifySettingsChanged();
     }
 

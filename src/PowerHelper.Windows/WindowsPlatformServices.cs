@@ -18,6 +18,7 @@ public static class WindowsPlatformServices
         new WindowsPowerProfileController(),
         new WindowsRefreshRateController(),
         new WindowsBrightnessController(),
+        new WindowsBatteryConservationController(),
         new WindowsBatteryReader(),
         new WindowsPowerSourceMonitor(),
         new WindowsStartupManager());

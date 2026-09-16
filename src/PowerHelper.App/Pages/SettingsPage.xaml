@@ -124,20 +124,39 @@
             <!-- ============================ power ============================ -->
             <Label Text="Power" Style="{StaticResource GroupHeaderStyle}" />
             <Border Style="{StaticResource CardStyle}">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
-                    <Path Grid.Column="0" Data="{StaticResource IconPower}" Style="{StaticResource RowIconStyle}" />
-                    <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                        <Label x:Name="PowerPlanTitle" Text="Match the power plan to the power source" Style="{StaticResource RowTitleStyle}" />
-                        <Label x:Name="PowerPlanDescription"
-                               Text="Power saver on battery, Balanced on AC. Best performance stays a manual choice, so the fan never ramps for a reason that isn't heat."
-                               Style="{StaticResource RowDescriptionStyle}" />
-                    </VerticalStackLayout>
-                    <Switch x:Name="PowerPlanSwitch"
-                            Grid.Column="2"
-                            VerticalOptions="Center"
-                            SemanticProperties.Description="Match the Windows power plan to the power source"
-                            Toggled="OnPowerPlanToggled" />
-                </Grid>
+                <VerticalStackLayout>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
+                        <Path Grid.Column="0" Data="{StaticResource IconPower}" Style="{StaticResource RowIconStyle}" />
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label x:Name="PowerPlanTitle" Text="Match the power plan to the power source" Style="{StaticResource RowTitleStyle}" />
+                            <Label x:Name="PowerPlanDescription"
+                                   Text="Power saver on battery, Balanced on AC. Best performance stays a manual choice, so the fan never ramps for a reason that isn't heat."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="PowerPlanSwitch"
+                                Grid.Column="2"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Match the Windows power plan to the power source"
+                                Toggled="OnPowerPlanToggled" />
+                    </Grid>
+
+                    <BoxView Style="{StaticResource DividerStyle}" />
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" Padding="16,14">
+                        <Path Grid.Column="0" Data="{StaticResource IconBatteryAlert}" Style="{StaticResource RowIconStyle}" />
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label Text="Battery conservation mode" Style="{StaticResource RowTitleStyle}" />
+                            <Label x:Name="BatteryConservationDescription"
+                                   Text="Limits charging to preserve long-term battery health."
+                                   Style="{StaticResource RowDescriptionStyle}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="BatteryConservationSwitch"
+                                Grid.Column="2"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Battery conservation mode"
+                                Toggled="OnBatteryConservationToggled" />
+                    </Grid>
+                </VerticalStackLayout>
             </Border>
 
             <!-- ============================ display ============================ -->

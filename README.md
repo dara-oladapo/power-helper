@@ -7,6 +7,7 @@ A lightweight Windows tray utility for laptop power management. The discrete-GPU
 - **Disable the discrete GPU on battery** — hard-disables the dGPU at the device level (not just a driver preference) whenever you unplug, so nothing can wake it back up until you're on AC again. A manual "enable/disable now" override is one click away if you need the dGPU while still on battery.
 - **Live battery status** — real percentage and time remaining/until-full, shown directly on the tray icon (no hover required) and refreshed every 30 seconds. Falls back to self-estimating the charge rate when the hardware's own reporting is unreliable, and calls out when the battery is genuinely losing charge despite being plugged in (system drawing more than the charger supplies).
 - **Power plan matched to power source** — Power saver on battery, Balanced on AC. Deliberately does *not* force High performance, since that pins CPU clock speed and ramps the fan regardless of actual heat; Performance stays a manual choice (Fn+Q or Windows Settings).
+- **Battery conservation mode** — toggles Lenovo's firmware-backed charge limiter (around 60–80%, model-dependent) through the Energy Management driver, the same path used by Lenovo Vantage.
 - **Refresh rate throttling on battery** — drops to 60Hz to save power, restores your native rate on AC or when the app exits.
 - **Brightness locked on battery** — caps the panel to a level you set whenever unplugged, and restores exactly what you had (not a guessed default) when you plug back in or exit the app.
 - **Low battery warning** — a toast notification at a threshold you set, with hysteresis so it doesn't repeat every poll.
@@ -35,6 +36,7 @@ All settings persist across restarts to `%AppData%\PowerHelper\settings.json`.
 | Low battery warning | ✅ | ✅ | [#4](../../issues/4) |
 | Disable the discrete GPU on battery | ✅ | ❌ no API | [#5](../../issues/5) |
 | Power profile matched to power source | ✅ | ❌ needs root | [#5](../../issues/5) |
+| Battery conservation mode (charge limiter) | ✅ Lenovo driver only | ❌ no API | [#5](../../issues/5) |
 | Brightness locked on battery | ✅ | ❌ no public API | [#5](../../issues/5) |
 | Refresh rate dropped on battery | ✅ | ❌ no public API | [#5](../../issues/5) |
 | Lives in the tray / menu bar | ✅ | ❌ needs AppKit | [#3](../../issues/3) |
@@ -60,6 +62,7 @@ options are laid out in [#3](../../issues/3), with the per-feature work in
 
 - Windows 10/11
 - Administrator rights (required to enable/disable the GPU device and manage the startup task — the app always runs elevated)
+- Lenovo Energy Management driver (`\\.\EnergyDrv`) only for battery conservation mode; the toggle disables itself when the driver is missing
 - NVIDIA Optimus (Intel/AMD integrated + NVIDIA discrete graphics) only for the dGPU toggle; every other feature works on any Windows laptop, and the dGPU card just disables itself if no discrete GPU is found
 
 ## Installation
